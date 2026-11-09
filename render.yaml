@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: autodiag
+    runtime: node
+    plan: starter
+    region: frankfurt
+    buildCommand: npm ci && npm run build
+    startCommand: npm run start -- -p $PORT
+    envVars:
+      - key: NODE_VERSION
+        value: "24"
+      # Τα mock δεδομένα και οι ώρες υπολογίζονται σε ώρα Ελλάδας
+      - key: TZ
+        value: Europe/Athens
+      # Μελλοντικά (Neon):
+      # - key: DATABASE_URL
+      #   sync: false
