@@ -1,9 +1,28 @@
 import "server-only";
+import { cache } from "react";
 import { cookies } from "next/headers";
-import { SESSION_COOKIE, isValidSession } from "./auth";
+import { redirect } from "next/navigation";
+import { SESSION_COOKIE, readSession } from "./auth";
+import { getUser, type User } from "./users";
 
-/** Για server actions του admin: το proxy προστατεύει τις σελίδες, αυτό τις ενέργειες. */
-export async function requireAdmin() {
-  const store = await cookies();
-  if (!(await isValidSession(store.get(SESSION_COOKIE)?.value))) throw new Error("Χρειάζεται σύνδεση.");
+/** Ο συνδεδεμένος χρήστης, αν το cookie είναι έγκυρο και ο χρήστης ενεργός. Μία ανάγνωση ανά request. */
+export const getCurrentUser = cache(async (): Promise<User | undefined> => {
+  const id = await readSession((await cookies()).get(SESSION_COOKIE)?.value);
+  if (!id) return undefined;
+  const user = await getUser(id);
+  return user?.active ? user : undefined;
+});
+
+/** Για σελίδες και ενέργειες του admin: το proxy ελέγχει μόνο την υπογραφή, αυτό και τη βάση. */
+export async function requireUser(): Promise<User> {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+  return user;
+}
+
+/** Μόνο για ιδιοκτήτες. Ο υπάλληλος γυρίζει στην αρχική του admin. */
+export async function requireOwner(): Promise<User> {
+  const user = await requireUser();
+  if (user.role !== "owner") redirect("/admin");
+  return user;
 }

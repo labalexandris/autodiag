@@ -12,9 +12,9 @@ services:
       # Τα mock δεδομένα και οι ώρες υπολογίζονται σε ώρα Ελλάδας
       - key: TZ
         value: Europe/Athens
-      # Κωδικός εισόδου στο /admin: ορίζεται στο dashboard του Render, όχι εδώ
-      - key: ADMIN_PASSWORD
+      # Βάση Neon (χρήστες): ορίζεται στο dashboard του Render, όχι εδώ
+      - key: DATABASE_URL
         sync: false
-      # Μελλοντικά (Neon):
-      # - key: DATABASE_URL
-      #   sync: false
+      # Υπογραφή των cookies σύνδεσης
+      - key: SESSION_SECRET
+        generateValue: true

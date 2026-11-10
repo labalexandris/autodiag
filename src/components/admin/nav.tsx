@@ -13,9 +13,26 @@ const items = [
   { href: "/admin", label: "Σήμερα", icon: Gauge, exact: true },
   { href: "/admin/calendar", label: "Ημερολόγιο", icon: CalendarDays },
   { href: "/admin/customers", label: "Πελάτες", icon: Users },
-  { href: "/admin/reports", label: "Αναφορές", icon: ChartColumn },
+  { href: "/admin/reports", label: "Αναφορές", icon: ChartColumn, ownerOnly: true },
   { href: "/admin/settings", label: "Ρυθμίσεις", icon: Settings },
 ];
+
+export interface Me {
+  name: string;
+  roleLabel: string;
+  isOwner: boolean;
+}
+
+const visibleItems = (isOwner: boolean) => items.filter((i) => isOwner || !i.ownerOnly);
+
+const initials = (name: string) =>
+  name
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w[0])
+    .join("")
+    .toUpperCase();
 
 function useActive() {
   const path = usePathname();
@@ -23,7 +40,7 @@ function useActive() {
     exact ? path === href : path === href || path.startsWith(href + "/") || (href === "/admin/customers" && path.startsWith("/admin/vehicles"));
 }
 
-export function Sidebar({ pending, canLogout }: { pending: number; canLogout: boolean }) {
+export function Sidebar({ pending, me }: { pending: number; me: Me }) {
   const isActive = useActive();
   return (
     <aside className="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col border-r border-line-2 bg-panel px-3 py-5 lg:flex">
@@ -31,7 +48,7 @@ export function Sidebar({ pending, canLogout }: { pending: number; canLogout: bo
         <Logo height={56} />
       </Link>
       <nav className="mt-7 flex flex-col gap-0.5" aria-label="Κύρια πλοήγηση">
-        {items.map(({ href, label, icon: Icon, exact }) => {
+        {visibleItems(me.isOwner).map(({ href, label, icon: Icon, exact }) => {
           const active = isActive(href, exact);
           return (
             <Link
@@ -61,27 +78,25 @@ export function Sidebar({ pending, canLogout }: { pending: number; canLogout: bo
         <Link href="/book" target="_blank" className="flex items-center gap-2 text-[13px] text-ink-2 hover:text-brand">
           <ExternalLink size={14} /> Σελίδα κρατήσεων
         </Link>
-        {canLogout && (
-          <form action={logout}>
-            <button className="flex items-center gap-2 text-[13px] text-ink-2 hover:text-brand">
-              <LogOut size={14} /> Αποσύνδεση
-            </button>
-          </form>
-        )}
-        <div className="flex items-center gap-2.5 border-t border-line-2 pt-4">
-          <span className="grid size-8 place-items-center rounded-full bg-ink text-[12px] font-semibold text-white">ΓΠ</span>
-          <span className="leading-tight">
-            <span className="block text-[14px] font-medium">Γιώργος</span>
-            <span className="block text-[12px] text-ink-3">Διαχειριστής</span>
+        <form action={logout}>
+          <button className="flex items-center gap-2 text-[13px] text-ink-2 hover:text-brand">
+            <LogOut size={14} /> Αποσύνδεση
+          </button>
+        </form>
+        <Link href="/admin/settings#account" className="flex items-center gap-2.5 border-t border-line-2 pt-4" title="Ο λογαριασμός μου">
+          <span className="grid size-8 shrink-0 place-items-center rounded-full bg-ink text-[12px] font-semibold text-white">{initials(me.name)}</span>
+          <span className="min-w-0 leading-tight">
+            <span className="block truncate text-[14px] font-medium">{me.name}</span>
+            <span className="block text-[12px] text-ink-3">{me.roleLabel}</span>
           </span>
-        </div>
+        </Link>
       </div>
     </aside>
   );
 }
 
 /** Κεφαλίδα κινητού: λογότυπο και αναζήτηση πινακίδας από κάθε σελίδα. */
-export function MobileHeader({ entries, canLogout }: { entries: SearchEntry[]; canLogout: boolean }) {
+export function MobileHeader({ entries }: { entries: SearchEntry[] }) {
   const [searching, setSearching] = useState(false);
   return (
     <header className="sticky top-0 z-30 border-b border-line-2 bg-panel/95 backdrop-blur lg:hidden">
@@ -93,13 +108,11 @@ export function MobileHeader({ entries, canLogout }: { entries: SearchEntry[]; c
           <button className="btn btn-ghost w-11 px-0" onClick={() => setSearching((s) => !s)} aria-label={searching ? "Κλείσιμο αναζήτησης" : "Αναζήτηση πινακίδας"} aria-expanded={searching}>
             {searching ? <X size={20} /> : <Search size={20} />}
           </button>
-          {canLogout && (
-            <form action={logout}>
-              <button className="btn btn-ghost w-11 px-0" aria-label="Αποσύνδεση">
-                <LogOut size={19} />
-              </button>
-            </form>
-          )}
+          <form action={logout}>
+            <button className="btn btn-ghost w-11 px-0" aria-label="Αποσύνδεση">
+              <LogOut size={19} />
+            </button>
+          </form>
         </div>
       </div>
       {searching && (
@@ -111,9 +124,10 @@ export function MobileHeader({ entries, canLogout }: { entries: SearchEntry[]; c
   );
 }
 
-export function MobileNav({ pending }: { pending: number }) {
+export function MobileNav({ pending, isOwner }: { pending: number; isOwner: boolean }) {
   const isActive = useActive();
   const path = usePathname();
+  const navItems = visibleItems(isOwner);
   return (
     <>
       {/* Νέο ραντεβού με τον αντίχειρα, από κάθε σελίδα εκτός του ημερολογίου που έχει το δικό του κουμπί */}
@@ -127,10 +141,10 @@ export function MobileNav({ pending }: { pending: number }) {
         </Link>
       )}
       <nav
-        className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 border-t border-line-2 bg-panel/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden"
+        className={cn("fixed inset-x-0 bottom-0 z-40 grid border-t border-line-2 bg-panel/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden", navItems.length === 5 ? "grid-cols-5" : "grid-cols-4")}
         aria-label="Κύρια πλοήγηση"
       >
-        {items.map(({ href, label, icon: Icon, exact }) => {
+        {navItems.map(({ href, label, icon: Icon, exact }) => {
           const active = isActive(href, exact);
           return (
             <Link

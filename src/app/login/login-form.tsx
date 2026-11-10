@@ -9,10 +9,24 @@ export function LoginForm({ next }: { next: string }) {
     <form action={action} className="mt-6 space-y-4">
       <input type="hidden" name="next" value={next} />
       <label className="block">
-        <span className="mb-1.5 block text-[14px] font-medium">Κωδικός</span>
-        <input className="field" type="password" name="password" autoComplete="current-password" autoFocus required aria-invalid={!!state.error} />
-        {state.error && <span className="mt-1.5 block text-[13px] text-fuse-red">{state.error}</span>}
+        <span className="mb-1.5 block text-[14px] font-medium">Όνομα χρήστη</span>
+        <input
+          className="field"
+          name="username"
+          autoComplete="username"
+          autoCapitalize="none"
+          autoCorrect="off"
+          spellCheck={false}
+          autoFocus
+          required
+          aria-invalid={!!state.error}
+        />
       </label>
+      <label className="block">
+        <span className="mb-1.5 block text-[14px] font-medium">Κωδικός</span>
+        <input className="field" type="password" name="password" autoComplete="current-password" required aria-invalid={!!state.error} />
+      </label>
+      {state.error && <p className="text-[13px] text-fuse-red">{state.error}</p>}
       <button className="btn btn-primary btn-lg w-full" disabled={pending}>
         {pending ? "Έλεγχος…" : "Είσοδος"}
       </button>

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { requireUser } from "@/lib/auth-server";
 import { getAppointments, getBays, getServices, getShop } from "@/lib/data";
 import { getSearchEntries, hydrateAppointments } from "@/lib/views";
 import { statusMeta } from "@/lib/labels";
@@ -27,6 +28,7 @@ function mondayOf(offsetWeeks: number) {
 }
 
 export default async function CalendarPage({ searchParams }: { searchParams: Promise<{ w?: string; new?: string; at?: string; plate?: string }> }) {
+  const user = await requireUser();
   const sp = await searchParams;
   const w = Number(sp.w ?? 0) || 0;
   const monday = mondayOf(w);
@@ -99,7 +101,7 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
         </Link>
       </div>
 
-      <AppointmentProvider services={services} technicians={shop.technicians} times={halfHourOptions(shop)}>
+      <AppointmentProvider services={services} technicians={shop.technicians} times={halfHourOptions(shop)} canCancel={user.role === "owner"}>
         {/* Desktop εβδομάδα */}
         <div className="panel hidden overflow-hidden md:block">
           <div className="grid border-b border-line-2" style={cols}>

@@ -1,24 +1,45 @@
 /*
- * Απλή προστασία του /admin με έναν κωδικό (μεταβλητή ADMIN_PASSWORD).
- * Χωρίς τη μεταβλητή το admin μένει ανοιχτό, ώστε το demo να δουλεύει τοπικά.
- * Το cookie κρατά ένα hash του κωδικού: αν αλλάξει ο κωδικός, όλες οι
- * συνδέσεις λήγουν. Όταν μπουν πολλοί χρήστες, αντικαθίσταται από κανονικό auth.
+ * Session cookie με υπογραφή: `userId.λήξη.υπογραφή` (HMAC-SHA256 με
+ * SESSION_SECRET). Χρησιμοποιείται και από το proxy, γι' αυτό μόνο Web Crypto
+ * και καμία πρόσβαση στη βάση. Το αν ο χρήστης είναι ακόμα ενεργός το
+ * ελέγχει το auth-server σε κάθε σελίδα και ενέργεια.
  */
 
 export const SESSION_COOKIE = "ad_session";
 export const SESSION_DAYS = 30;
 
-export const authEnabled = () => Boolean(process.env.ADMIN_PASSWORD);
+const enc = new TextEncoder();
 
-export async function sessionValue(password: string) {
-  const bytes = new TextEncoder().encode(`autodiag-admin:${password}`);
-  const hash = await crypto.subtle.digest("SHA-256", bytes);
-  return Array.from(new Uint8Array(hash), (b) => b.toString(16).padStart(2, "0")).join("");
+const b64url = (bytes: ArrayBuffer) =>
+  btoa(String.fromCharCode(...new Uint8Array(bytes)))
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/, "");
+
+async function sign(payload: string) {
+  const secret = process.env.SESSION_SECRET;
+  if (!secret) throw new Error("Λείπει το SESSION_SECRET.");
+  const key = await crypto.subtle.importKey("raw", enc.encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  return b64url(await crypto.subtle.sign("HMAC", key, enc.encode(payload)));
 }
 
-export async function isValidSession(cookie: string | undefined) {
-  const password = process.env.ADMIN_PASSWORD;
-  if (!password) return true;
-  if (!cookie) return false;
-  return cookie === (await sessionValue(password));
+export async function createSession(userId: string) {
+  const exp = Date.now() + SESSION_DAYS * 86400000;
+  const payload = `${userId}.${exp}`;
+  return `${payload}.${await sign(payload)}`;
+}
+
+/** Το id του χρήστη αν το cookie είναι έγκυρο και δεν έχει λήξει, αλλιώς null. */
+export async function readSession(cookie: string | undefined): Promise<string | null> {
+  if (!cookie || !process.env.SESSION_SECRET) return null;
+  const parts = cookie.split(".");
+  if (parts.length !== 3) return null;
+  const [userId, exp, sig] = parts;
+  if (!(Number(exp) > Date.now())) return null;
+  const expected = await sign(`${userId}.${exp}`);
+  // Σύγκριση σταθερού χρόνου
+  if (expected.length !== sig.length) return null;
+  let diff = 0;
+  for (let i = 0; i < sig.length; i++) diff |= expected.charCodeAt(i) ^ sig.charCodeAt(i);
+  return diff === 0 ? userId : null;
 }

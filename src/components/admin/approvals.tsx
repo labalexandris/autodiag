@@ -18,7 +18,7 @@ export interface PendingItem {
   ownerMismatch?: boolean;
 }
 
-export function Approvals({ items }: { items: PendingItem[] }) {
+export function Approvals({ items, canReject }: { items: PendingItem[]; canReject: boolean }) {
   const [list, remove] = useOptimistic(items, (s, id: string) => s.filter((x) => x.id !== id));
   const [, start] = useTransition();
 
@@ -65,9 +65,11 @@ export function Approvals({ items }: { items: PendingItem[] }) {
             <button className="btn btn-primary btn-sm" onClick={() => act(it, true)}>
               <Check size={15} /> Επιβεβαίωση
             </button>
-            <button className="btn btn-ghost btn-sm" onClick={() => act(it, false)}>
-              <X size={15} /> Απόρριψη
-            </button>
+            {canReject && (
+              <button className="btn btn-ghost btn-sm" onClick={() => act(it, false)}>
+                <X size={15} /> Απόρριψη
+              </button>
+            )}
           </div>
         </li>
       ))}

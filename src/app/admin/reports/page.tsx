@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { requireOwner } from "@/lib/auth-server";
 import { getAppointments, getServices } from "@/lib/data";
 import { statusMeta, sourceLabel } from "@/lib/labels";
 import { fmtDayNum, fmtEUR, fmtMonthShort, fmtNum, cn } from "@/lib/format";
@@ -21,6 +22,7 @@ function amount(a: Appointment) {
 }
 
 export default async function ReportsPage({ searchParams }: { searchParams: Promise<{ p?: string }> }) {
+  await requireOwner();
   const sp = (await searchParams).p;
   const p: P = sp && sp in periods ? (sp as P) : "90";
   const days = Number(p);

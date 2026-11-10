@@ -2,22 +2,23 @@
 
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { SESSION_COOKIE, SESSION_DAYS, sessionValue } from "@/lib/auth";
+import { SESSION_COOKIE, SESSION_DAYS, createSession } from "@/lib/auth";
+import { authenticate } from "@/lib/users";
 
 export async function login(_prev: { error?: string }, form: FormData): Promise<{ error?: string }> {
-  const expected = process.env.ADMIN_PASSWORD;
   const next = String(form.get("next") ?? "");
   const target = next.startsWith("/admin") ? next : "/admin";
-  if (!expected) redirect(target);
-
-  const given = String(form.get("password") ?? "");
-  // Σύγκριση των hash, ώστε ο χρόνος να μην εξαρτάται από το πόσο μοιάζουν οι κωδικοί
-  if ((await sessionValue(given)) !== (await sessionValue(expected))) {
-    await new Promise((r) => setTimeout(r, 600));
-    return { error: "Λάθος κωδικός." };
+  if (!process.env.DATABASE_URL || !process.env.SESSION_SECRET) {
+    return { error: "Η σύνδεση δεν έχει ρυθμιστεί στον server (DATABASE_URL, SESSION_SECRET)." };
   }
 
-  (await cookies()).set(SESSION_COOKIE, await sessionValue(expected), {
+  const user = await authenticate(String(form.get("username") ?? ""), String(form.get("password") ?? ""));
+  if (!user) {
+    await new Promise((r) => setTimeout(r, 600));
+    return { error: "Λάθος όνομα χρήστη ή κωδικός." };
+  }
+
+  (await cookies()).set(SESSION_COOKIE, await createSession(user.id), {
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
@@ -29,5 +30,5 @@ export async function login(_prev: { error?: string }, form: FormData): Promise<
 
 export async function logout() {
   (await cookies()).delete(SESSION_COOKIE);
-  redirect("/");
+  redirect("/login");
 }

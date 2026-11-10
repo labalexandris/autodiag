@@ -19,6 +19,8 @@ interface Ctx {
   technicians: string[];
   /** Ώρες ανά 30′ μέσα στο ωράριο, για την αλλαγή ώρας */
   times: string[];
+  /** Απόρριψη και ακύρωση: μόνο ο ιδιοκτήτης */
+  canCancel: boolean;
 }
 const AppointmentContext = createContext<Ctx | null>(null);
 
@@ -62,7 +64,7 @@ export function AppointmentCard({
       <button type="button" className={className} style={style} title={title} onClick={() => setMode("details")} aria-haspopup="dialog">
         {children}
       </button>
-      {mode === "details" && <Details item={item} times={ctx?.times ?? []} onClose={() => setMode("closed")} onComplete={() => setMode("record")} />}
+      {mode === "details" && <Details item={item} times={ctx?.times ?? []} canCancel={ctx?.canCancel ?? false} onClose={() => setMode("closed")} onComplete={() => setMode("record")} />}
       {mode === "record" && ctx && (
         <RecordDialog
           vehicleId={item.vehicleId}
@@ -79,7 +81,17 @@ export function AppointmentCard({
   );
 }
 
-function Details({ item, times, onClose, onComplete }: { item: SheetItem; times: string[]; onClose: () => void; onComplete: () => void }) {
+function Details({
+  item,
+  times,
+  canCancel,
+  onClose,
+  onComplete,
+}: {
+  item: SheetItem;
+  times: string[];
+  canCancel: boolean;
+  onClose: () => void; onComplete: () => void }) {
   const [pending, start] = useTransition();
   const [moving, setMoving] = useState(false);
   const [date, setDate] = useState(localDate(item.start));
@@ -178,9 +190,11 @@ function Details({ item, times, onClose, onComplete }: { item: SheetItem; times:
               <button className="btn btn-primary btn-lg" disabled={pending} onClick={() => set("confirmed", `Επιβεβαιώθηκε. Στάλθηκε SMS στον/στην ${first}.`)}>
                 <Check size={18} /> Επιβεβαίωση
               </button>
-              <button className="btn btn-outline" disabled={pending} onClick={() => set("cancelled", "Το αίτημα απορρίφθηκε.")}>
-                <X size={16} /> Απόρριψη
-              </button>
+              {canCancel && (
+                <button className="btn btn-outline" disabled={pending} onClick={() => set("cancelled", "Το αίτημα απορρίφθηκε.")}>
+                  <X size={16} /> Απόρριψη
+                </button>
+              )}
             </>
           )}
           {item.status === "confirmed" && (
@@ -188,13 +202,15 @@ function Details({ item, times, onClose, onComplete }: { item: SheetItem; times:
               <button className="btn btn-primary btn-lg" disabled={pending} onClick={() => set("in_progress", `Το ${item.plate} μπήκε για εργασία.`)}>
                 <Play size={17} /> Ήρθε, ξεκινάμε
               </button>
-              <div className="grid grid-cols-2 gap-2">
+              <div className={canCancel ? "grid grid-cols-2 gap-2" : "grid gap-2"}>
                 <button className="btn btn-outline" disabled={pending} onClick={() => set("no_show", "Σημειώθηκε ότι δεν ήρθε.")}>
                   <UserX size={16} /> Δεν ήρθε
                 </button>
-                <button className="btn btn-outline" disabled={pending} onClick={() => set("cancelled", "Το ραντεβού ακυρώθηκε.")}>
-                  <X size={16} /> Ακύρωση
-                </button>
+                {canCancel && (
+                  <button className="btn btn-outline" disabled={pending} onClick={() => set("cancelled", "Το ραντεβού ακυρώθηκε.")}>
+                    <X size={16} /> Ακύρωση
+                  </button>
+                )}
               </div>
             </>
           )}

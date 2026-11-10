@@ -2,21 +2,45 @@ import { getBays, getServices, getShop, getSmsTemplates } from "@/lib/data";
 import { fmtEUR } from "@/lib/format";
 import { SmsTemplates } from "@/components/admin/sms-templates";
 import { CalendarConnect } from "@/components/admin/calendar-connect";
+import { Account } from "@/components/admin/account";
+import { UsersAdmin } from "@/components/admin/users-admin";
+import { requireUser } from "@/lib/auth-server";
+import { listUsers, roleLabel } from "@/lib/users";
 
 export const metadata = { title: "Ρυθμίσεις" };
 
 const dayNames = ["Κυριακή", "Δευτέρα", "Τρίτη", "Τετάρτη", "Πέμπτη", "Παρασκευή", "Σάββατο"];
 
 export default async function SettingsPage() {
-  const [shop, services, bays, templates] = await Promise.all([getShop(), getServices(), getBays(), getSmsTemplates()]);
+  const user = await requireUser();
+  const isOwner = user.role === "owner";
+  const [shop, services, bays, templates, users] = await Promise.all([
+    getShop(),
+    getServices(),
+    getBays(),
+    getSmsTemplates(),
+    isOwner ? listUsers() : Promise.resolve([]),
+  ]);
   const hours = [...shop.hours].sort((a, b) => ((a.day + 6) % 7) - ((b.day + 6) % 7));
 
   return (
     <div className="space-y-10">
       <header>
         <h1 className="font-cond text-[32px] font-semibold leading-none sm:text-[38px]">Ρυθμίσεις</h1>
-        <p className="mt-2.5 text-[15px] text-ink-2">Ημερολόγιο, μηνύματα και ό,τι βλέπει ο πελάτης όταν κλείνει ραντεβού.</p>
+        <p className="mt-2.5 text-[15px] text-ink-2">Λογαριασμός, ημερολόγιο, μηνύματα και ό,τι βλέπει ο πελάτης όταν κλείνει ραντεβού.</p>
       </header>
+
+      <Section id="account" title="Ο λογαριασμός μου">
+        <div className="panel p-5">
+          <Account name={user.name} username={user.username} roleLabel={roleLabel[user.role]} />
+        </div>
+      </Section>
+
+      {isOwner && (
+        <Section id="users" title="Χρήστες" desc="Ποιοι μπαίνουν στην εφαρμογή. Ο υπάλληλος δεν βλέπει αναφορές και δεν ακυρώνει ραντεβού.">
+          <UsersAdmin users={users} meId={user.id} />
+        </Section>
+      )}
 
       <Section id="calendar" title="Ημερολόγιο κινητού" desc="Τα ραντεβού εμφανίζονται στο ημερολόγιο του τηλεφώνου σου.">
         <div className="panel p-5">

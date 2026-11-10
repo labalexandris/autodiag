@@ -22,13 +22,13 @@ npm run dev        # http://localhost:3000
 | `/book` | Πελάτης | Κράτηση σε 5 βήματα: υπηρεσία, πινακίδα, ώρα, στοιχεία, επιβεβαίωση |
 | `/b/[token]` | Πελάτης | Το βιβλιάριο του αυτοκινήτου του (σύνδεσμος από SMS ή QR) |
 | `/r/[token]` | Πελάτης | Το ραντεβού του: αλλαγή ώρας ή ακύρωση έως 2 ώρες πριν (σύνδεσμος από SMS) |
-| `/login` | Συνεργείο | Είσοδος στο admin, όταν έχει οριστεί `ADMIN_PASSWORD` |
+| `/login` | Συνεργείο | Είσοδος με όνομα χρήστη και κωδικό |
 | `/admin` | Συνεργείο | Σήμερα: πίνακας ημέρας ανά θέση, αιτήματα online, λήξεις. Πάτημα σε ραντεβού: «ήρθε», ολοκλήρωση με εγγραφή στο βιβλιάριο, «δεν ήρθε», αλλαγή ώρας |
 | `/admin/calendar` | Συνεργείο | Εβδομάδα, νέο ραντεβού από τηλέφωνο ή με κλικ σε κενή ώρα |
 | `/admin/customers` | Συνεργείο | Πελάτες, αναζήτηση με όνομα, πινακίδα ή τηλέφωνο |
 | `/admin/vehicles/[plate]` | Συνεργείο | Ψηφιακό βιβλιάριο και νέα εργασία |
-| `/admin/reports` | Συνεργείο | Έσοδα, υπηρεσίες, no-shows, πηγές κρατήσεων, SMS |
-| `/admin/settings` | Συνεργείο | Google Calendar, πρότυπα SMS, υπηρεσίες, ωράριο |
+| `/admin/reports` | Ιδιοκτήτες | Έσοδα, υπηρεσίες, no-shows, πηγές κρατήσεων, SMS |
+| `/admin/settings` | Συνεργείο | Λογαριασμός, χρήστες (ιδιοκτήτες), Google Calendar, πρότυπα SMS, υπηρεσίες, ωράριο |
 
 ## Δομή
 
@@ -38,7 +38,9 @@ src/lib/mock/seed.ts    mock δεδομένα, σχετικά με τη σημε
 src/lib/data.ts         ΤΟ data layer: async συναρτήσεις, μόνο αυτό αλλάζει για Neon
 src/lib/views.ts        συνδυασμοί για τις σελίδες
 src/lib/hours.ts        το ωράριο (shop.hours) για άξονες, ημερολόγιο και κείμενα
-src/lib/auth.ts         κωδικός admin (ADMIN_PASSWORD), μαζί με το src/proxy.ts
+src/lib/users.ts        χρήστες και ρόλοι στο Neon (owner / staff)
+src/lib/auth.ts         υπογεγραμμένο cookie σύνδεσης, μαζί με το src/proxy.ts
+src/lib/auth-server.ts  requireUser / requireOwner για σελίδες και ενέργειες
 src/components/         πινακίδα, καταστάσεις, βιβλιάριο, admin
 ```
 
@@ -59,13 +61,19 @@ src/components/         πινακίδα, καταστάσεις, βιβλιάρ
 ## Deploy (Render)
 
 `render.yaml` στο root. **Απαραίτητο `TZ=Europe/Athens`**, αλλιώς οι ώρες μετατοπίζονται.
-Όρισε και `ADMIN_PASSWORD`: χωρίς αυτό το `/admin` είναι ανοιχτό σε όλους.
+Όρισε `DATABASE_URL` (Neon). Το `SESSION_SECRET` το φτιάχνει το Render.
+
+## Χρήστες
+
+- **Ιδιοκτήτης**: τα πάντα, μαζί με αναφορές και διαχείριση χρηστών (Ρυθμίσεις → Χρήστες).
+- **Υπάλληλος**: χωρίς αναφορές, χωρίς απόρριψη/ακύρωση ραντεβού.
+- Ο πίνακας `users` φτιάχνεται μόνος του. Αν είναι άδειος, μπαίνουν οι `manolis` και `dimitris` (κωδικός `123`).
+- Χρήστες δεν διαγράφονται, απενεργοποιούνται. Πάντα μένει τουλάχιστον ένας ενεργός ιδιοκτήτης.
 
 ## Επόμενα
 
-1. Neon + Drizzle: σχήμα από το `types.ts`, υλοποίηση του `data.ts`
-2. Auth ανά χρήστη για το admin (τώρα ένας κοινός κωδικός)
-3. SMS provider (Yuboto / Apifon / Routee) + scheduler υπενθυμίσεων
-4. Google Calendar API (εγγραφή ραντεβού + free/busy)
-5. Λογότυπο σε SVG (τώρα PNG στο `public/autodiag.png`, μέσω `src/components/logo.tsx`)
+1. Neon: σχήμα από το `types.ts`, υλοποίηση του `data.ts` (οι χρήστες είναι ήδη στο Neon)
+2. SMS provider (Yuboto / Apifon / Routee) + scheduler υπενθυμίσεων
+3. Google Calendar API (εγγραφή ραντεβού + free/busy)
+4. Λογότυπο σε SVG (τώρα PNG στο `public/autodiag.png`, μέσω `src/components/logo.tsx`)
 6. Ακριβής διεύθυνση και `mapsUrl` στο `shop` για τον χάρτη της αρχικής, φωτογραφίες του συνεργείου

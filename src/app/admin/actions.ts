@@ -13,7 +13,7 @@ import {
   updateCustomer,
   updateVehicle,
 } from "@/lib/data";
-import { requireAdmin } from "@/lib/auth-server";
+import { requireUser } from "@/lib/auth-server";
 import { formatPhone, normalizePhone } from "@/lib/phone";
 import type { AppointmentStatus, Fuel, RecordItem } from "@/lib/types";
 
@@ -24,7 +24,9 @@ const fail = (e: unknown): Result => {
 };
 
 export async function updateStatus(id: string, status: AppointmentStatus) {
-  await requireAdmin();
+  const user = await requireUser();
+  // Απόρριψη και ακύρωση μόνο από ιδιοκτήτη
+  if (status === "cancelled" && user.role !== "owner") throw new Error("Μόνο ο ιδιοκτήτης μπορεί να ακυρώσει ραντεβού.");
   await setAppointmentStatus(id, status);
   // Σε production εδώ: SMS επιβεβαίωσης + εγγραφή στο Google Calendar
   revalidatePath("/admin", "layout");
@@ -43,7 +45,7 @@ export async function saveRecord(input: {
   labor: number;
   technician: string;
 }) {
-  await requireAdmin();
+  await requireUser();
   const shop = await getShop();
   const rec = await addRecord({
     ...input,
@@ -66,7 +68,7 @@ export async function createPhoneBooking(input: {
   model: string;
   notes?: string;
 }): Promise<Result> {
-  await requireAdmin();
+  await requireUser();
   try {
     await createBooking({ ...input, smsConsent: true, source: "phone", confirmed: true });
   } catch (e) {
@@ -77,7 +79,7 @@ export async function createPhoneBooking(input: {
 }
 
 export async function rescheduleAppointment(id: string, start: string): Promise<Result> {
-  await requireAdmin();
+  await requireUser();
   try {
     await moveAppointment(id, start);
   } catch (e) {
@@ -89,7 +91,7 @@ export async function rescheduleAppointment(id: string, start: string): Promise<
 
 /** Ο πελάτης που έκλεισε το ραντεβού γίνεται ιδιοκτήτης του οχήματος στο αρχείο. */
 export async function assignOwnerFromAppointment(appointmentId: string) {
-  await requireAdmin();
+  await requireUser();
   const appt = await getAppointment(appointmentId);
   if (appt) await setVehicleOwner(appt.vehicleId, appt.customerId);
   revalidatePath("/admin", "layout");
@@ -99,7 +101,7 @@ export async function saveVehicle(
   id: string,
   input: { make: string; model: string; year?: number; fuel?: Fuel; engine?: string; vin?: string; km: number },
 ): Promise<Result> {
-  await requireAdmin();
+  await requireUser();
   if (input.make.trim().length < 2) return { ok: false, error: "Συμπλήρωσε τη μάρκα." };
   const thisYear = new Date().getFullYear();
   if (input.year !== undefined && (input.year < 1950 || input.year > thisYear + 1)) return { ok: false, error: "Το έτος δεν είναι σωστό." };
@@ -120,7 +122,7 @@ export async function saveCustomer(
   id: string,
   input: { name: string; phone: string; email?: string; notes?: string; smsConsent: boolean; marketingConsent: boolean },
 ): Promise<Result> {
-  await requireAdmin();
+  await requireUser();
   if (input.name.trim().length < 3) return { ok: false, error: "Συμπλήρωσε το ονοματεπώνυμο." };
   if (!normalizePhone(input.phone)) return { ok: false, error: "Το τηλέφωνο πρέπει να έχει 10 ψηφία." };
   await updateCustomer(id, {

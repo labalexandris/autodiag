@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { authEnabled } from "@/lib/auth";
+import { getCurrentUser } from "@/lib/auth-server";
 import { Logo } from "@/components/logo";
 import { LoginForm } from "./login-form";
 
@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 
 export default async function LoginPage({ searchParams }: { searchParams: Promise<{ next?: string }> }) {
   const next = (await searchParams).next ?? "/admin";
-  if (!authEnabled()) redirect("/admin");
+  if (await getCurrentUser().catch(() => undefined)) redirect(next.startsWith("/admin") ? next : "/admin");
 
   return (
     <div className="grid min-h-dvh place-items-center px-4 py-10">

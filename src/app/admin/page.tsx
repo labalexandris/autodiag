@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { CalendarCheck2, Plus } from "lucide-react";
+import { requireUser } from "@/lib/auth-server";
 import { getAppointments, getBays, getServices, getShop } from "@/lib/data";
 import { getDueSoon, getSearchEntries, hydrateAppointments } from "@/lib/views";
 import { halfHourOptions, hoursBounds } from "@/lib/hours";
@@ -15,6 +16,7 @@ export const metadata = { title: "Σήμερα" };
 export const dynamic = "force-dynamic";
 
 export default async function TodayPage() {
+  const user = await requireUser();
   const from = new Date();
   from.setHours(0, 0, 0, 0);
   const to = new Date(from);
@@ -68,7 +70,7 @@ export default async function TodayPage() {
 
       <section aria-labelledby="board" className="space-y-3">
         <h2 id="board" className="sr-only">Πρόγραμμα ημέρας</h2>
-        <AppointmentProvider services={services} technicians={shop.technicians} times={halfHourOptions(shop)}>
+        <AppointmentProvider services={services} technicians={shop.technicians} times={halfHourOptions(shop)} canCancel={user.role === "owner"}>
           <DayBoard bays={bays} items={active} start={start} end={end} />
         </AppointmentProvider>
         <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
@@ -89,6 +91,7 @@ export default async function TodayPage() {
             <span className="text-[13px] text-ink-3">Περιμένουν επιβεβαίωση</span>
           </header>
           <Approvals
+            canReject={user.role === "owner"}
             items={pending.slice(0, 5).map((p) => ({
               id: p.appt.id,
               start: p.appt.start,
