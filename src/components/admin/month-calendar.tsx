@@ -53,7 +53,7 @@ export function MonthCalendar({
   todayHref: string;
   action: React.ReactNode;
 }) {
-  const cols = weekdays.map((_, i) => (closedCols.includes(i) ? "minmax(0,0.45fr)" : "minmax(0,1fr)")).join(" ");
+  const cols = weekdays.map((_, i) => (closedCols.includes(i) ? "minmax(0,0.3fr)" : "minmax(0,1fr)")).join(" ");
   const weeks = Array.from({ length: days.length / 7 }, (_, w) => days.slice(w * 7, w * 7 + 7));
 
   return (
@@ -95,7 +95,7 @@ export function MonthCalendar({
               <div
                 key={d.key}
                 className={cn(
-                  "group flex min-h-[110px] min-w-0 flex-col gap-0.5 p-1.5",
+                  "group flex min-h-[110px] min-w-0 flex-col gap-1 p-1.5",
                   i < 6 && "border-r border-line-2",
                   !d.inMonth && "bg-sunk/70",
                   d.closed && d.inMonth && "bg-sunk/40",
@@ -132,14 +132,19 @@ export function MonthCalendar({
                       item={e.item}
                       title={`${e.time} ${e.item.serviceName}\n${e.item.customerName}, ${e.item.plate}\n${e.item.bayName} · ${m.label}`}
                       className={cn(
-                        "flex w-full min-w-0 items-center gap-1.5 rounded px-1 py-[3px] text-left text-[12px] leading-tight hover:bg-panel hover:shadow-[0_1px_4px_rgba(30,34,38,0.15)]",
-                        e.status === "pending" && "bg-signal-soft",
-                        (e.status === "done" || e.status === "no_show") && "text-ink-3",
+                        "relative block w-full min-w-0 overflow-hidden rounded-md border border-line-2 bg-panel py-1 pl-2.5 pr-1.5 text-left text-[12px] leading-[1.3] hover:border-line hover:shadow-[0_2px_8px_-2px_rgba(30,34,38,0.2)]",
+                        e.status === "pending" && "border-[#efd77a] bg-signal-soft",
+                        (e.status === "done" || e.status === "no_show") && "bg-sunk text-ink-3",
                       )}
                     >
-                      <span className="h-3.5 w-[3px] shrink-0 rounded-full" style={{ background: m.fuse }} />
-                      <span className="shrink-0 font-semibold tnum">{e.time}</span>
-                      <span className={cn("truncate", e.status === "no_show" && "line-through")}>{e.item.serviceName}</span>
+                      <span className="absolute inset-y-0 left-0 w-[3px]" style={{ background: m.fuse }} />
+                      <span className="flex min-w-0 items-center justify-between gap-1">
+                        <span className="font-semibold tnum">{e.time}</span>
+                        <Plate plate={e.item.plate} size="xs" className="shrink-0" />
+                      </span>
+                      <span className={cn("mt-0.5 block truncate font-medium", e.status === "no_show" && "line-through")}>{e.item.serviceName}</span>
+                      <span className="block truncate">{e.item.customerName}</span>
+                      <span className="block truncate text-ink-3">{e.item.vehicle}</span>
                     </AppointmentCard>
                   );
                 })}
