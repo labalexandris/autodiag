@@ -1,43 +1,41 @@
 import Link from "next/link";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import type { AppointmentStatus } from "@/lib/types";
+import type { SheetItem } from "@/lib/sheet-item";
+import { statusMeta } from "@/lib/labels";
 import { cn } from "@/lib/format";
+import { Plate } from "@/components/plate";
+import { Fuse } from "@/components/status";
+import { AppointmentCard } from "@/components/admin/appointment-sheet";
+import { ScrollToToday } from "@/components/admin/scroll-to-today";
 
-/**
- * Μία μέρα του μήνα, ως σύνοψη: πόσα ραντεβού, πόσο γεμάτες οι θέσεις,
- * πόσα περιμένουν έγκριση. Όλα υπολογίζονται στον server (ώρα Ελλάδας).
- */
-export interface MonthDay {
+export interface CalEntry {
+  time: string;
+  status: AppointmentStatus;
+  item: SheetItem;
+}
+
+/** Μία μέρα του πλέγματος με όλα της τα ραντεβού. Όλα έτοιμα από τον server (ώρα Ελλάδας). */
+export interface CalDay {
   key: string;
   num: number;
-  href: string;
   label: string;
   inMonth: boolean;
   isToday: boolean;
-  isPast: boolean;
-  isSelected: boolean;
   closed: boolean;
-  count: number;
-  pending: number;
-  noShow: number;
-  /** 0–1: κλεισμένα λεπτά / διαθέσιμα λεπτά σε όλες τις θέσεις */
-  load: number;
-  freeMin: number;
+  newHref: string;
+  entries: CalEntry[];
 }
 
-const weekdays = ["Δευ", "Τρι", "Τετ", "Πεμ", "Παρ", "Σαβ", "Κυρ"];
+const weekdays = ["Δευτέρα", "Τρίτη", "Τετάρτη", "Πέμπτη", "Παρασκευή", "Σάββατο", "Κυριακή"];
 
-const loadColor = (d: MonthDay) =>
-  d.isPast ? "var(--fuse-grey)" : d.load >= 0.9 ? "var(--fuse-red)" : d.load >= 0.65 ? "var(--fuse-orange)" : "var(--fuse-green)";
-
-function freeLabel(d: MonthDay) {
-  if (d.isPast) return d.noShow ? `${d.noShow} δεν ήρθαν` : "";
-  if (d.freeMin < 60) return "Γεμάτη";
-  const h = Math.floor(d.freeMin / 30) / 2;
-  return `${String(h).replace(".", ",")} ώρ. ελεύθερες`;
-}
-
+/**
+ * Μεγάλο μηνιαίο ημερολόγιο: κάθε μέρα δείχνει όλα τα ραντεβού της (η
+ * εβδομάδα ψηλώνει όσο χρειάζεται). Στο κινητό γίνεται λίστα ανά μέρα.
+ */
 export function MonthCalendar({
   days,
+  closedCols,
   title,
   summary,
   prevHref,
@@ -45,7 +43,9 @@ export function MonthCalendar({
   todayHref,
   action,
 }: {
-  days: MonthDay[];
+  days: CalDay[];
+  /** Ποιες στήλες (0 = Δευτέρα) είναι κλειστές μέρες, για να στενέψουν */
+  closedCols: number[];
   title: string;
   summary: React.ReactNode;
   prevHref: string;
@@ -53,8 +53,11 @@ export function MonthCalendar({
   todayHref: string;
   action: React.ReactNode;
 }) {
+  const cols = weekdays.map((_, i) => (closedCols.includes(i) ? "minmax(0,0.45fr)" : "minmax(0,1fr)")).join(" ");
+  const weeks = Array.from({ length: days.length / 7 }, (_, w) => days.slice(w * 7, w * 7 + 7));
+
   return (
-    <section className="space-y-4" aria-label="Μήνας">
+    <div className="space-y-4">
       <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
         <div>
           <h1 className="text-[26px] font-semibold capitalize leading-tight">{title}</h1>
@@ -62,13 +65,13 @@ export function MonthCalendar({
         </div>
         <div className="flex items-center gap-2">
           <div className="inline-flex flex-1 -space-x-px md:flex-none">
-            <Link href={prevHref} scroll={false} className="btn btn-outline w-10 rounded-r-none px-0" aria-label="Προηγούμενος μήνας">
+            <Link href={prevHref} className="btn btn-outline w-10 rounded-r-none px-0" aria-label="Προηγούμενος μήνας">
               <ChevronLeft size={22} strokeWidth={2.5} />
             </Link>
-            <Link href={todayHref} scroll={false} className="btn btn-outline flex-1 rounded-none md:flex-none">
+            <Link href={todayHref} className="btn btn-outline flex-1 rounded-none md:flex-none">
               Σήμερα
             </Link>
-            <Link href={nextHref} scroll={false} className="btn btn-outline w-10 rounded-l-none px-0" aria-label="Επόμενος μήνας">
+            <Link href={nextHref} className="btn btn-outline w-10 rounded-l-none px-0" aria-label="Επόμενος μήνας">
               <ChevronRight size={22} strokeWidth={2.5} />
             </Link>
           </div>
@@ -76,83 +79,112 @@ export function MonthCalendar({
         </div>
       </div>
 
-      <div className="panel overflow-hidden">
-        <div className="grid grid-cols-7 border-b border-line-2 text-center text-[12px] font-semibold text-ink-2">
+      {/* Desktop / tablet: πλέγμα με όλα τα ραντεβού */}
+      <div className="panel hidden overflow-hidden md:block">
+        <div className="grid border-b border-line-2 text-[12.5px] font-semibold text-ink-2" style={{ gridTemplateColumns: cols }}>
           {weekdays.map((w, i) => (
-            <div key={w} className={cn("py-2", i < 6 && "border-r border-line-2")}>
-              {w}
+            <div key={w} className={cn("truncate px-2.5 py-2", i < 6 && "border-r border-line-2", closedCols.includes(i) && "text-ink-3")}>
+              <span className="lg:hidden">{w.slice(0, 3)}</span>
+              <span className="hidden lg:inline">{w}</span>
             </div>
           ))}
         </div>
-        <div className="grid grid-cols-7">
-          {days.map((d, i) => (
-            <Link
-              key={d.key}
-              href={d.href}
-              scroll={false}
-              aria-label={`${d.label}: ${d.closed && !d.count ? "κλειστά" : `${d.count} ραντεβού`}${d.pending ? `, ${d.pending} προς έγκριση` : ""}`}
-              aria-current={d.isSelected ? "date" : undefined}
-              className={cn(
-                "relative flex min-h-[68px] flex-col gap-1 border-line-2 p-1.5 transition-colors sm:min-h-[84px] sm:p-2",
-                i % 7 !== 6 && "border-r",
-                i < days.length - 7 && "border-b",
-                !d.inMonth && "bg-sunk/80",
-                d.isSelected ? "z-[1] bg-brand-soft/60 outline outline-2 -outline-offset-2 outline-brand" : "hover:bg-sunk",
-              )}
-            >
-              <div className="flex items-center justify-between">
-                <span
-                  className={cn(
-                    "grid size-6 place-items-center rounded-full text-[12.5px] tnum sm:size-7 sm:text-[13px]",
-                    !d.inMonth && "text-ink-3",
-                    d.isToday && "bg-brand font-semibold text-white",
-                    d.isSelected && !d.isToday && "font-semibold",
-                  )}
-                >
-                  {d.num}
-                </span>
-                {d.pending > 0 && (
-                  <span className="grid h-5 min-w-5 place-items-center rounded-full bg-signal px-1 text-[11px] font-semibold text-ink tnum" title={`${d.pending} προς έγκριση`}>
-                    {d.pending}
-                  </span>
+        {weeks.map((week, w) => (
+          <div key={week[0].key} className={cn("grid", w > 0 && "border-t border-line-2")} style={{ gridTemplateColumns: cols }}>
+            {week.map((d, i) => (
+              <div
+                key={d.key}
+                className={cn(
+                  "group flex min-h-[110px] min-w-0 flex-col gap-0.5 p-1.5",
+                  i < 6 && "border-r border-line-2",
+                  !d.inMonth && "bg-sunk/70",
+                  d.closed && d.inMonth && "bg-sunk/40",
+                  d.isToday && "bg-brand-soft/40",
                 )}
-              </div>
-
-              {d.closed && !d.count ? (
-                <span className="mt-auto hidden text-[11.5px] text-ink-3 sm:block">Κλειστά</span>
-              ) : (
-                <div className="mt-auto space-y-1">
-                  {d.count > 0 && (
-                    <p className={cn("text-[12px] leading-none tnum sm:text-[13px]", d.isPast ? "text-ink-3" : "font-medium")}>
-                      {d.count}
-                      <span className="hidden sm:inline"> ραντεβού</span>
-                    </p>
+              >
+                <div className="mb-0.5 flex items-center gap-1.5 px-1">
+                  <span
+                    className={cn(
+                      "grid size-6 place-items-center rounded-full text-[12.5px] tnum",
+                      !d.inMonth && "text-ink-3",
+                      d.isToday && "bg-brand font-semibold text-white",
+                    )}
+                  >
+                    {d.num}
+                  </span>
+                  {d.entries.length > 0 && <span className="text-[11.5px] text-ink-3 tnum">{d.entries.length}</span>}
+                  {!d.closed && (
+                    <Link
+                      href={d.newHref}
+                      scroll={false}
+                      className="ml-auto grid size-6 place-items-center rounded-md text-brand opacity-0 transition-opacity hover:bg-brand-soft focus-visible:opacity-100 group-hover:opacity-100"
+                      aria-label={`Νέο ραντεβού, ${d.label}`}
+                    >
+                      <Plus size={15} />
+                    </Link>
                   )}
-                  <div className="h-1.5 overflow-hidden rounded-full bg-line-2" title={`${Math.round(d.load * 100)}% πληρότητα`}>
-                    <div className="h-full rounded-full" style={{ width: `${Math.min(100, Math.round(d.load * 100))}%`, background: loadColor(d) }} />
-                  </div>
-                  <p className="hidden truncate text-[11.5px] leading-none text-ink-3 lg:block">{freeLabel(d) || " "}</p>
                 </div>
-              )}
-            </Link>
-          ))}
-        </div>
+                {d.entries.map((e) => {
+                  const m = statusMeta[e.status];
+                  return (
+                    <AppointmentCard
+                      key={e.item.id}
+                      item={e.item}
+                      title={`${e.time} ${e.item.serviceName}\n${e.item.customerName}, ${e.item.plate}\n${e.item.bayName} · ${m.label}`}
+                      className={cn(
+                        "flex w-full min-w-0 items-center gap-1.5 rounded px-1 py-[3px] text-left text-[12px] leading-tight hover:bg-panel hover:shadow-[0_1px_4px_rgba(30,34,38,0.15)]",
+                        e.status === "pending" && "bg-signal-soft",
+                        (e.status === "done" || e.status === "no_show") && "text-ink-3",
+                      )}
+                    >
+                      <span className="h-3.5 w-[3px] shrink-0 rounded-full" style={{ background: m.fuse }} />
+                      <span className="shrink-0 font-semibold tnum">{e.time}</span>
+                      <span className={cn("truncate", e.status === "no_show" && "line-through")}>{e.item.serviceName}</span>
+                    </AppointmentCard>
+                  );
+                })}
+              </div>
+            ))}
+          </div>
+        ))}
       </div>
 
-      <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 text-[12.5px] text-ink-3">
-        <span className="flex items-center gap-1.5">
-          <span className="h-1.5 w-5 rounded-full bg-fuse-green" /> Ελεύθερη
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="h-1.5 w-5 rounded-full bg-fuse-orange" /> Σχεδόν γεμάτη
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="h-1.5 w-5 rounded-full bg-fuse-red" /> Γεμάτη
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="grid h-4 min-w-4 place-items-center rounded-full bg-signal px-1 text-[10px] font-semibold text-ink">2</span> Προς έγκριση
-        </span>
+      {/* Κινητό: η ίδια μέρα-μέρα, σε λίστα, από τη σημερινή */}
+      <div className="space-y-5 md:hidden">
+        <ScrollToToday />
+        {days
+          .filter((d) => d.inMonth && (!d.closed || d.entries.length))
+          .map((d) => (
+            <section key={d.key} id={d.isToday ? "today" : undefined} className="scroll-mt-20">
+              <h2 className={cn("mb-2 flex items-baseline gap-2 text-[15px] font-semibold first-letter:uppercase", d.isToday && "text-brand")}>
+                {d.label}
+                <span className="text-[13px] font-normal text-ink-3">{d.entries.length ? `${d.entries.length} ραντεβού` : "ελεύθερη"}</span>
+                {!d.closed && (
+                  <Link href={d.newHref} scroll={false} className="ml-auto text-[13px] font-medium text-brand">
+                    + Ραντεβού
+                  </Link>
+                )}
+              </h2>
+              {d.entries.length > 0 && (
+                <ul className="panel divide-y divide-line-2 overflow-hidden">
+                  {d.entries.map((e) => (
+                    <li key={e.item.id} className={cn(e.status === "pending" && "bg-signal-soft/60")}>
+                      <AppointmentCard item={e.item} className="flex w-full items-center gap-3 px-4 py-3 text-left">
+                        <span className={cn("w-11 text-[14px] font-semibold tnum", (e.status === "done" || e.status === "no_show") && "text-ink-3")}>{e.time}</span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-[14.5px] font-medium">{e.item.serviceName}</span>
+                          <span className="block truncate text-[12.5px] text-ink-2">{e.item.customerName}</span>
+                        </span>
+                        <Plate plate={e.item.plate} size="xs" />
+                        <Fuse color={statusMeta[e.status].fuse} />
+                      </AppointmentCard>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+          ))}
       </div>
-    </section>
+    </div>
   );
 }
