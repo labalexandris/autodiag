@@ -1,210 +1,158 @@
-"use client";
-
 import Link from "next/link";
-import { useState } from "react";
-import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
-import type { AppointmentStatus } from "@/lib/types";
-import type { SheetItem } from "@/lib/sheet-item";
-import { statusMeta } from "@/lib/labels";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/format";
-import { Plate } from "@/components/plate";
-import { Fuse } from "@/components/status";
-import { AppointmentCard } from "@/components/admin/appointment-sheet";
 
-/** Μία μέρα του πλέγματος. Όλα έρχονται έτοιμα από τον server (ώρα Ελλάδας). */
+/**
+ * Μία μέρα του μήνα, ως σύνοψη: πόσα ραντεβού, πόσο γεμάτες οι θέσεις,
+ * πόσα περιμένουν έγκριση. Όλα υπολογίζονται στον server (ώρα Ελλάδας).
+ */
 export interface MonthDay {
-  /** YYYY-MM-DD */
   key: string;
   num: number;
+  href: string;
+  label: string;
   inMonth: boolean;
   isToday: boolean;
+  isPast: boolean;
+  isSelected: boolean;
   closed: boolean;
-  /** «Τρίτη 11 Νοεμβρίου» */
-  label: string;
-}
-
-export interface MonthItem {
-  dayKey: string;
-  time: string;
-  status: AppointmentStatus;
-  item: SheetItem;
+  count: number;
+  pending: number;
+  noShow: number;
+  /** 0–1: κλεισμένα λεπτά / διαθέσιμα λεπτά σε όλες τις θέσεις */
+  load: number;
+  freeMin: number;
 }
 
 const weekdays = ["Δευ", "Τρι", "Τετ", "Πεμ", "Παρ", "Σαβ", "Κυρ"];
 
+const loadColor = (d: MonthDay) =>
+  d.isPast ? "var(--fuse-grey)" : d.load >= 0.9 ? "var(--fuse-red)" : d.load >= 0.65 ? "var(--fuse-orange)" : "var(--fuse-green)";
+
+function freeLabel(d: MonthDay) {
+  if (d.isPast) return d.noShow ? `${d.noShow} δεν ήρθαν` : "";
+  if (d.freeMin < 60) return "Γεμάτη";
+  const h = Math.floor(d.freeMin / 30) / 2;
+  return `${String(h).replace(".", ",")} ώρ. ελεύθερες`;
+}
+
 export function MonthCalendar({
   days,
-  items,
-  todayKey,
-  initialDay,
   title,
-  range,
+  summary,
   prevHref,
   nextHref,
   todayHref,
-  todayMonth,
-  todayNum,
-  newButton,
-  monthQuery,
+  action,
 }: {
   days: MonthDay[];
-  items: MonthItem[];
-  todayKey: string;
-  initialDay: string;
   title: string;
-  range: string;
+  summary: React.ReactNode;
   prevHref: string;
   nextHref: string;
   todayHref: string;
-  todayMonth: string;
-  todayNum: number;
-  newButton: React.ReactNode;
-  /** π.χ. "m=2026-11&", για να μένει ο μήνας όταν ανοίγει νέο ραντεβού */
-  monthQuery: string;
+  action: React.ReactNode;
 }) {
-  const [selected, setSelected] = useState(initialDay);
-  const byDay = new Map<string, MonthItem[]>();
-  for (const it of items) byDay.set(it.dayKey, [...(byDay.get(it.dayKey) ?? []), it]);
-  const selectedDay = days.find((d) => d.key === selected);
-  const selectedItems = byDay.get(selected) ?? [];
-
   return (
-    <div className="space-y-5">
-      {/* Κεφαλίδα */}
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div className="flex items-center gap-4">
-          <div className="hidden w-16 flex-col items-center rounded-lg border border-line bg-sunk p-0.5 md:flex">
-            <span className="py-0.5 text-[11px] font-medium uppercase text-ink-3">{todayMonth}</span>
-            <span className="flex w-full justify-center rounded-md border border-line bg-panel py-0.5 text-[18px] font-bold tnum">{todayNum}</span>
-          </div>
-          <div>
-            <h1 className="text-[24px] font-semibold capitalize leading-tight">{title}</h1>
-            <p className="text-[14px] text-ink-2">{range}</p>
-          </div>
+    <section className="space-y-4" aria-label="Μήνας">
+      <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+        <div>
+          <h1 className="text-[26px] font-semibold capitalize leading-tight">{title}</h1>
+          <p className="mt-1 text-[14px] text-ink-2">{summary}</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           <div className="inline-flex flex-1 -space-x-px md:flex-none">
-            <Link href={prevHref} className="btn btn-outline w-10 rounded-r-none px-0" aria-label="Προηγούμενος μήνας">
-              <ChevronLeft size={19} strokeWidth={2.2} />
+            <Link href={prevHref} scroll={false} className="btn btn-outline w-10 rounded-r-none px-0" aria-label="Προηγούμενος μήνας">
+              <ChevronLeft size={22} strokeWidth={2.5} />
             </Link>
-            <Link href={todayHref} onClick={() => setSelected(todayKey)} className="btn btn-outline flex-1 rounded-none md:flex-none">
+            <Link href={todayHref} scroll={false} className="btn btn-outline flex-1 rounded-none md:flex-none">
               Σήμερα
             </Link>
-            <Link href={nextHref} className="btn btn-outline w-10 rounded-l-none px-0" aria-label="Επόμενος μήνας">
-              <ChevronRight size={19} strokeWidth={2.2} />
+            <Link href={nextHref} scroll={false} className="btn btn-outline w-10 rounded-l-none px-0" aria-label="Επόμενος μήνας">
+              <ChevronRight size={22} strokeWidth={2.5} />
             </Link>
           </div>
-          {newButton}
+          {action}
         </div>
       </div>
 
-      {/* Πλέγμα */}
       <div className="panel overflow-hidden">
         <div className="grid grid-cols-7 border-b border-line-2 text-center text-[12px] font-semibold text-ink-2">
           {weekdays.map((w, i) => (
-            <div key={w} className={cn("py-2.5", i < 6 && "border-r border-line-2")}>
+            <div key={w} className={cn("py-2", i < 6 && "border-r border-line-2")}>
               {w}
             </div>
           ))}
         </div>
         <div className="grid grid-cols-7">
-          {days.map((d, i) => {
-            const list = byDay.get(d.key) ?? [];
-            const isSel = d.key === selected;
-            return (
-              <div
-                key={d.key}
-                onClick={() => setSelected(d.key)}
-                className={cn(
-                  "group relative flex min-h-14 cursor-pointer flex-col border-line-2 lg:min-h-32",
-                  i % 7 !== 6 && "border-r",
-                  i < days.length - 7 && "border-b",
-                  !d.inMonth && "bg-sunk/70",
-                  d.closed && d.inMonth && "bg-sunk/40",
-                  isSel ? "bg-brand-soft/50" : "hover:bg-sunk",
+          {days.map((d, i) => (
+            <Link
+              key={d.key}
+              href={d.href}
+              scroll={false}
+              aria-label={`${d.label}: ${d.closed && !d.count ? "κλειστά" : `${d.count} ραντεβού`}${d.pending ? `, ${d.pending} προς έγκριση` : ""}`}
+              aria-current={d.isSelected ? "date" : undefined}
+              className={cn(
+                "relative flex min-h-[68px] flex-col gap-1 border-line-2 p-1.5 transition-colors sm:min-h-[84px] sm:p-2",
+                i % 7 !== 6 && "border-r",
+                i < days.length - 7 && "border-b",
+                !d.inMonth && "bg-sunk/80",
+                d.isSelected ? "z-[1] bg-brand-soft/60 outline outline-2 -outline-offset-2 outline-brand" : "hover:bg-sunk",
+              )}
+            >
+              <div className="flex items-center justify-between">
+                <span
+                  className={cn(
+                    "grid size-6 place-items-center rounded-full text-[12.5px] tnum sm:size-7 sm:text-[13px]",
+                    !d.inMonth && "text-ink-3",
+                    d.isToday && "bg-brand font-semibold text-white",
+                    d.isSelected && !d.isToday && "font-semibold",
+                  )}
+                >
+                  {d.num}
+                </span>
+                {d.pending > 0 && (
+                  <span className="grid h-5 min-w-5 place-items-center rounded-full bg-signal px-1 text-[11px] font-semibold text-ink tnum" title={`${d.pending} προς έγκριση`}>
+                    {d.pending}
+                  </span>
                 )}
-              >
-                <div className="flex items-center justify-end p-1.5 lg:justify-between lg:p-2">
-                  <button
-                    type="button"
-                    className={cn(
-                      "grid size-7 place-items-center rounded-full text-[12.5px] tnum",
-                      !d.inMonth && "text-ink-3",
-                      d.isToday && !isSel && "font-semibold text-brand",
-                      isSel && (d.isToday ? "bg-brand font-semibold text-white" : "bg-ink font-semibold text-white"),
-                    )}
-                    aria-label={d.label}
-                    aria-pressed={isSel}
-                  >
-                    {d.num}
-                  </button>
-                  {list.length > 0 && <span className="hidden text-[11.5px] text-ink-3 lg:inline">{list.length}</span>}
-                </div>
-
-                {/* Desktop: τα πρώτα ραντεβού της μέρας */}
-                <div className="hidden flex-1 space-y-1 px-1.5 pb-1.5 lg:block">
-                  {list.slice(0, 3).map((it) => (
-                    <AppointmentCard
-                      key={it.item.id}
-                      item={it.item}
-                      title={`${it.time} ${it.item.serviceName}, ${it.item.customerName} (${statusMeta[it.status].label})`}
-                      className="flex w-full items-center gap-1.5 rounded-md border border-line-2 bg-panel px-1.5 py-1 text-left text-[11.5px] leading-tight hover:border-line hover:shadow-sm"
-                    >
-                      <span className="h-3.5 w-[3px] shrink-0 rounded-full" style={{ background: statusMeta[it.status].fuse }} />
-                      <span className="font-medium tnum">{it.time}</span>
-                      <span className="truncate text-ink-2">{it.item.serviceName}</span>
-                    </AppointmentCard>
-                  ))}
-                  {list.length > 3 && <p className="px-1 text-[11.5px] text-ink-3">+ {list.length - 3} ακόμα</p>}
-                </div>
-
-                {/* Κινητό: κουκκίδες */}
-                <div className="mt-auto flex justify-center gap-0.5 px-1 pb-1.5 lg:hidden">
-                  {list.slice(0, 5).map((it) => (
-                    <span key={it.item.id} className="size-1.5 rounded-full" style={{ background: statusMeta[it.status].fuse }} />
-                  ))}
-                </div>
               </div>
-            );
-          })}
+
+              {d.closed && !d.count ? (
+                <span className="mt-auto hidden text-[11.5px] text-ink-3 sm:block">Κλειστά</span>
+              ) : (
+                <div className="mt-auto space-y-1">
+                  {d.count > 0 && (
+                    <p className={cn("text-[12px] leading-none tnum sm:text-[13px]", d.isPast ? "text-ink-3" : "font-medium")}>
+                      {d.count}
+                      <span className="hidden sm:inline"> ραντεβού</span>
+                    </p>
+                  )}
+                  <div className="h-1.5 overflow-hidden rounded-full bg-line-2" title={`${Math.round(d.load * 100)}% πληρότητα`}>
+                    <div className="h-full rounded-full" style={{ width: `${Math.min(100, Math.round(d.load * 100))}%`, background: loadColor(d) }} />
+                  </div>
+                  <p className="hidden truncate text-[11.5px] leading-none text-ink-3 lg:block">{freeLabel(d) || " "}</p>
+                </div>
+              )}
+            </Link>
+          ))}
         </div>
       </div>
 
-      {/* Τα ραντεβού της επιλεγμένης μέρας */}
-      {selectedDay && (
-        <section>
-          <h2 className="mb-2 flex items-baseline gap-2 text-[16px] font-semibold first-letter:uppercase">
-            {selectedDay.label}
-            <span className="text-[13px] font-normal text-ink-3">
-              {selectedItems.length ? `${selectedItems.length} ραντεβού` : selectedDay.closed ? "κλειστά" : "κανένα ραντεβού"}
-            </span>
-            {!selectedDay.closed && (
-              <Link href={`?${monthQuery}new=1&at=${selectedDay.key}T09:00`} scroll={false} className="ml-auto inline-flex items-center gap-1 text-[13px] font-medium text-brand">
-                <Plus size={14} /> Ραντεβού
-              </Link>
-            )}
-          </h2>
-          {selectedItems.length > 0 && (
-            <ul className="panel divide-y divide-line-2 overflow-hidden">
-              {selectedItems.map((it) => (
-                <li key={it.item.id}>
-                  <AppointmentCard item={it.item} className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-sunk">
-                    <span className="w-11 text-[14px] font-semibold tnum">{it.time}</span>
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-[14.5px] font-medium">{it.item.serviceName}</span>
-                      <span className="block truncate text-[12.5px] text-ink-2">
-                        {it.item.customerName}, {it.item.bayName}
-                      </span>
-                    </span>
-                    <Plate plate={it.item.plate} size="xs" />
-                    <Fuse color={statusMeta[it.status].fuse} />
-                  </AppointmentCard>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-      )}
-    </div>
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 text-[12.5px] text-ink-3">
+        <span className="flex items-center gap-1.5">
+          <span className="h-1.5 w-5 rounded-full bg-fuse-green" /> Ελεύθερη
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="h-1.5 w-5 rounded-full bg-fuse-orange" /> Σχεδόν γεμάτη
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="h-1.5 w-5 rounded-full bg-fuse-red" /> Γεμάτη
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="grid h-4 min-w-4 place-items-center rounded-full bg-signal px-1 text-[10px] font-semibold text-ink">2</span> Προς έγκριση
+        </span>
+      </div>
+    </section>
   );
 }

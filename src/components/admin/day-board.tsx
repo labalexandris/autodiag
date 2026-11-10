@@ -21,7 +21,22 @@ const LABEL_PX = 112;
  * Πίνακας ημέρας: γραμμή ανά θέση εργασίας, οριζόντιος άξονας ώρας.
  * `start` / `end` είναι οι ώρες του ωραρίου (από το shop.hours).
  */
-export function DayBoard({ bays, items, start, end }: { bays: Bay[]; items: BoardItem[]; start: number; end: number }) {
+export function DayBoard({
+  bays,
+  items,
+  start,
+  end,
+  showNow = true,
+  emptyText = "Δεν υπάρχουν ραντεβού σήμερα.",
+}: {
+  bays: Bay[];
+  items: BoardItem[];
+  start: number;
+  end: number;
+  /** Η γραμμή «τώρα»: μόνο όταν ο πίνακας δείχνει τη σημερινή μέρα */
+  showNow?: boolean;
+  emptyText?: string;
+}) {
   const span = (end - start) * 60;
   const hours = Array.from({ length: end - start + 1 }, (_, i) => start + i);
   const fromStart = (iso: string) => {
@@ -94,13 +109,13 @@ export function DayBoard({ bays, items, start, end }: { bays: Bay[]; items: Boar
               </div>
             </div>
           ))}
-          <NowLine start={start} end={end} offsetPx={LABEL_PX} />
+          {showNow && <NowLine start={start} end={end} offsetPx={LABEL_PX} />}
         </div>
       </div>
 
       {/* Mobile: λίστα με τη σειρά της ώρας */}
       <ol className="panel divide-y divide-line-2 overflow-hidden md:hidden">
-        {items.length === 0 && <li className="p-5 text-[15px] text-ink-2">Δεν υπάρχουν ραντεβού σήμερα.</li>}
+        {items.length === 0 && <li className="p-5 text-[15px] text-ink-2">{emptyText}</li>}
         {items.map((it) => {
           const m = statusMeta[it.appt.status];
           return (
