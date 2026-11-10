@@ -13,19 +13,23 @@ export default async function BookPage({ searchParams }: { searchParams: Promise
   const { s: preselect, plate } = await searchParams;
 
   return (
-    <div className="min-h-dvh bg-bg">
-      <header className="border-b border-line-2 bg-panel">
-        <div className="mx-auto flex h-16 max-w-5xl items-center justify-between px-4 sm:px-6">
+    <div className="relative min-h-dvh bg-bg font-book">
+      {/* Απαλό φως στην κορυφή */}
+      <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-[420px] bg-[radial-gradient(70%_100%_at_30%_0%,var(--brand-soft),transparent_70%)]" />
+      <header className="relative border-b border-line-2/70 bg-panel/70 backdrop-blur">
+        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
           <Link href="/" aria-label="Αρχική">
             <Logo />
           </Link>
-          <a href={`tel:${shop.phone.replace(/\s/g, "")}`} className="flex items-center gap-2 text-[14px] font-medium text-ink-2 hover:text-brand">
+          <a href={`tel:${shop.phone.replace(/\s/g, "")}`} className="flex items-center gap-2 rounded-full border border-line-2 bg-panel px-3.5 py-1.5 text-[14px] font-semibold text-ink-2 transition-colors hover:border-brand hover:text-brand">
             <Phone size={16} />
             <span className="tnum">{shop.phone}</span>
           </a>
         </div>
       </header>
-      <BookingFlow services={services} availability={availability} shop={shop} preselect={preselect} initialPlate={plate} />
+      <div className="relative">
+        <BookingFlow services={services} availability={availability} shop={shop} preselect={preselect} initialPlate={plate} />
+      </div>
     </div>
   );
 }

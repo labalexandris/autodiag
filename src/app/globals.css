@@ -54,6 +54,7 @@
 
   --font-sans: var(--font-fira), system-ui, sans-serif;
   --font-cond: var(--font-fira-cond), var(--font-fira), system-ui, sans-serif;
+  --font-book: var(--font-commissioner), var(--font-fira), system-ui, sans-serif;
 
   --radius-plate: 5px;
 }
@@ -213,3 +214,24 @@ textarea.field {
   50% { opacity: 0.55; }
 }
 
+
+/* Κράτηση: τίτλοι με «flair» (ανοιχτά άκρα) και λίγο περισσότερο όγκο */
+.flair {
+  font-variation-settings: "FLAR" 100, "VOLM" 60;
+  letter-spacing: -0.02em;
+}
+.flair-soft {
+  font-variation-settings: "FLAR" 50, "VOLM" 20;
+}
+.book-field {
+  height: 3.25rem;
+  border-radius: 0.75rem;
+  font-size: 1.0625rem;
+  padding-inline: 1rem;
+}
+textarea.book-field {
+  height: auto;
+}
+.book-field:hover {
+  border-color: var(--ink-3);
+}
