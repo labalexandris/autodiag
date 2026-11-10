@@ -1,8 +1,8 @@
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { Car, ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import type { AppointmentStatus } from "@/lib/types";
 import type { SheetItem } from "@/lib/sheet-item";
-import { statusMeta } from "@/lib/labels";
+import { serviceColorOf, statusMeta } from "@/lib/labels";
 import { cn } from "@/lib/format";
 import { Plate } from "@/components/plate";
 import { Fuse } from "@/components/status";
@@ -126,6 +126,8 @@ export function MonthCalendar({
                 </div>
                 {d.entries.map((e) => {
                   const m = statusMeta[e.status];
+                  const c = serviceColorOf(e.item.serviceId);
+                  const done = e.status === "done" || e.status === "no_show";
                   return (
                     <AppointmentCard
                       key={e.item.id}
@@ -134,17 +136,27 @@ export function MonthCalendar({
                       className={cn(
                         "relative block w-full min-w-0 overflow-hidden rounded-md border border-line-2 bg-panel py-1 pl-2.5 pr-1.5 text-left text-[12px] leading-[1.3] hover:border-line hover:shadow-[0_2px_8px_-2px_rgba(30,34,38,0.2)]",
                         e.status === "pending" && "border-[#efd77a] bg-signal-soft",
-                        (e.status === "done" || e.status === "no_show") && "bg-sunk text-ink-3",
+                        done && "bg-sunk",
                       )}
                     >
                       <span className="absolute inset-y-0 left-0 w-[3px]" style={{ background: m.fuse }} />
                       <span className="flex min-w-0 items-center justify-between gap-1">
-                        <span className="font-semibold tnum">{e.time}</span>
+                        <span className={cn("text-[12.5px] font-bold tnum", done ? "text-ink-3" : "text-brand")}>{e.time}</span>
                         <Plate plate={e.item.plate} size="xs" className="shrink-0" />
                       </span>
-                      <span className={cn("mt-0.5 block truncate font-medium", e.status === "no_show" && "line-through")}>{e.item.serviceName}</span>
-                      <span className="block truncate">{e.item.customerName}</span>
-                      <span className="block truncate text-ink-3">{e.item.vehicle}</span>
+                      <span className={cn("mt-0.5 block truncate text-[12.5px] font-bold", done ? "text-ink-2" : "text-ink", e.status === "no_show" && "line-through")}>
+                        {e.item.customerName}
+                      </span>
+                      <span
+                        className="mt-0.5 inline-block max-w-full truncate rounded px-1.5 py-px text-[11.5px] font-semibold"
+                        style={{ color: c.fg, background: c.bg, opacity: done ? 0.75 : 1 }}
+                      >
+                        {e.item.serviceName}
+                      </span>
+                      <span className="mt-0.5 flex min-w-0 items-center gap-1 text-[11.5px] text-ink-3">
+                        <Car size={12} className="shrink-0" aria-hidden />
+                        <span className="truncate">{e.item.vehicle}</span>
+                      </span>
                     </AppointmentCard>
                   );
                 })}
@@ -177,8 +189,17 @@ export function MonthCalendar({
                       <AppointmentCard item={e.item} className="flex w-full items-center gap-3 px-4 py-3 text-left">
                         <span className={cn("w-11 text-[14px] font-semibold tnum", (e.status === "done" || e.status === "no_show") && "text-ink-3")}>{e.time}</span>
                         <span className="min-w-0 flex-1">
-                          <span className="block truncate text-[14.5px] font-medium">{e.item.serviceName}</span>
-                          <span className="block truncate text-[12.5px] text-ink-2">{e.item.customerName}</span>
+                          <span className="block truncate text-[14.5px] font-bold">{e.item.customerName}</span>
+                          <span
+                            className="mt-0.5 inline-block max-w-full truncate rounded px-1.5 py-px text-[12px] font-semibold"
+                            style={{ color: serviceColorOf(e.item.serviceId).fg, background: serviceColorOf(e.item.serviceId).bg }}
+                          >
+                            {e.item.serviceName}
+                          </span>
+                          <span className="mt-0.5 flex items-center gap-1 text-[12px] text-ink-3">
+                            <Car size={12} className="shrink-0" aria-hidden />
+                            <span className="truncate">{e.item.vehicle}</span>
+                          </span>
                         </span>
                         <Plate plate={e.item.plate} size="xs" />
                         <Fuse color={statusMeta[e.status].fuse} />

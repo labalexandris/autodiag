@@ -26,3 +26,19 @@ export const reminderLabel: Record<ReminderKind, string> = {
   battery: "Έλεγχος μπαταρίας",
   timing: "Ιμάντας χρονισμού",
 };
+
+/**
+ * Χρώμα ανά εργασία, για να ξεχωρίζει με μια ματιά στο ημερολόγιο.
+ * Σκούρο κείμενο πάνω σε απαλό φόντο του ίδιου χρώματος (αντίθεση ≥ 4,5:1).
+ */
+export const serviceColor: Record<string, { fg: string; bg: string }> = {
+  diag: { fg: "#5b3db5", bg: "#efeafc" },
+  immo: { fg: "#0f6b63", bg: "#e2f4f1" },
+  ac: { fg: "#0369a1", bg: "#e0f2fe" },
+  starter: { fg: "#b4400d", bg: "#fdeee4" },
+  battery: { fg: "#15703a", bg: "#e5f5ea" },
+  lights: { fg: "#8a5a00", bg: "#fbf1d6" },
+  windows: { fg: "#a8195a", bg: "#fce8f1" },
+  service: { fg: "#1d4fb8", bg: "#e6edfb" },
+};
+export const serviceColorOf = (id: string) => serviceColor[id] ?? { fg: "var(--ink-2)", bg: "var(--sunk)" };
