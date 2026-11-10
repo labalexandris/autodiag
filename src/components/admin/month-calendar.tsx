@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Car, ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import type { AppointmentStatus } from "@/lib/types";
 import type { SheetItem } from "@/lib/sheet-item";
 import { serviceColorOf, statusMeta } from "@/lib/labels";
@@ -132,10 +132,11 @@ export function MonthCalendar({
                     <AppointmentCard
                       key={e.item.id}
                       item={e.item}
+                      style={{ borderColor: done ? `color-mix(in srgb, ${m.fuse} 45%, transparent)` : m.fuse }}
                       title={`${e.time} ${e.item.serviceName}\n${e.item.customerName}, ${e.item.plate}\n${e.item.bayName} · ${m.label}`}
                       className={cn(
-                        "relative block w-full min-w-0 overflow-hidden rounded-md border border-line-2 bg-panel py-1 pl-2.5 pr-1.5 text-left text-[12px] leading-[1.3] hover:border-line hover:shadow-[0_2px_8px_-2px_rgba(30,34,38,0.2)]",
-                        e.status === "pending" && "border-[#efd77a] bg-signal-soft",
+                        "relative block w-full min-w-0 overflow-hidden rounded-md border-[1.5px] bg-panel py-1 pl-2.5 pr-1.5 text-left text-[12px] leading-[1.3] hover:shadow-[0_2px_8px_-2px_rgba(30,34,38,0.25)]",
+                        e.status === "pending" && "bg-signal-soft",
                         done && "bg-sunk",
                       )}
                     >
@@ -153,9 +154,11 @@ export function MonthCalendar({
                       >
                         {e.item.serviceName}
                       </span>
-                      <span className="mt-0.5 flex min-w-0 items-center gap-1 text-[11.5px] text-ink-3">
-                        <Car size={12} className="shrink-0" aria-hidden />
-                        <span className="truncate">{e.item.vehicle}</span>
+                      <span className="mt-1 flex min-w-0 items-center gap-1 text-[11.5px]">
+                        <span className="shrink-0 rounded bg-ink px-1.5 py-px text-[11px] font-semibold text-white" style={{ opacity: done ? 0.6 : 1 }}>
+                          {e.item.make}
+                        </span>
+                        <span className="truncate text-ink-2">{e.item.model}</span>
                       </span>
                     </AppointmentCard>
                   );
@@ -196,9 +199,9 @@ export function MonthCalendar({
                           >
                             {e.item.serviceName}
                           </span>
-                          <span className="mt-0.5 flex items-center gap-1 text-[12px] text-ink-3">
-                            <Car size={12} className="shrink-0" aria-hidden />
-                            <span className="truncate">{e.item.vehicle}</span>
+                          <span className="mt-1 flex min-w-0 items-center gap-1 text-[12px]">
+                            <span className="shrink-0 rounded bg-ink px-1.5 py-px text-[11.5px] font-semibold text-white">{e.item.make}</span>
+                            <span className="truncate text-ink-2">{e.item.model}</span>
                           </span>
                         </span>
                         <Plate plate={e.item.plate} size="xs" />

@@ -14,6 +14,8 @@ export interface SheetItem {
   plateKey: string;
   vehicleId: string;
   vehicle: string;
+  make: string;
+  model: string;
   km: number;
   customerName: string;
   customerPhone: string;
@@ -39,6 +41,8 @@ export function toSheetItem(
     plateKey: normalizePlate(it.vehicle.plate),
     vehicleId: it.vehicle.id,
     vehicle: `${it.vehicle.make} ${it.vehicle.model}`.trim(),
+    make: it.vehicle.make,
+    model: it.vehicle.model,
     km: it.vehicle.km,
     customerName: it.customer.name,
     customerPhone: it.customer.phone,
