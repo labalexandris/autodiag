@@ -19,7 +19,7 @@ export interface SearchEntry {
  * (ikb4821 → ΙΚΒ-4821), γιατί έτσι πληκτρολογούν οι περισσότεροι στο κινητό.
  * Συντόμευση: «/» από οπουδήποτε.
  */
-export function PlateSearch({ entries, autoFocus }: { entries: SearchEntry[]; autoFocus?: boolean }) {
+export function PlateSearch({ entries, autoFocus, onNavigate }: { entries: SearchEntry[]; autoFocus?: boolean; onNavigate?: () => void }) {
   const router = useRouter();
   const [q, setQ] = useState("");
   const [active, setActive] = useState(0);
@@ -57,6 +57,8 @@ export function PlateSearch({ entries, autoFocus }: { entries: SearchEntry[]; au
   const go = (plate: string) => {
     router.push(`/admin/vehicles/${encodeURIComponent(normalizePlate(plate))}`);
     setOpen(false);
+    setQ("");
+    onNavigate?.();
   };
 
   return (

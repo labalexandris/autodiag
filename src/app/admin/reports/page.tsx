@@ -63,6 +63,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
       sub: `${fmtDayNum(s)}/${s.getMonth() + 1}`,
       value: inW.reduce((sum, a) => sum + amount(a), 0),
       count: inW.length,
+      partial: e > now,
     });
   }
 

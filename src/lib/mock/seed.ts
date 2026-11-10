@@ -48,6 +48,7 @@ export const shop: Shop = {
   phone: "210 639 8145",
   email: "autodiag.pk@gmail.com",
   address: "Αθήνα",
+  technicians: ["Γ. Παπουτσάκης", "Α. Κώτσας", "Μ. Σαββίδης"],
   hours: [
     { day: 1, open: "08:00", close: "17:00" },
     { day: 2, open: "08:00", close: "17:00" },
@@ -238,7 +239,7 @@ customers.forEach((c, i) => {
 // Σταθερή πινακίδα για demo αναζήτησης
 vehicles[0].plate = "ΙΚΒ-4821";
 
-const technicians = ["Γ. Παπουτσάκης", "Α. Κώτσας", "Μ. Σαββίδης"];
+const technicians = shop.technicians;
 
 const recordTemplates: Record<string, { title: string; description: string; dtcs?: string[]; items: [string, number][]; labor: number }[]> = {
   diag: [
@@ -311,6 +312,9 @@ vehicles.forEach((v, i) => {
 
 /* Ραντεβού: παρελθόν (για αναφορές) + αυτή η εβδομάδα + επόμενες */
 export const appointments: Appointment[] = [];
+// Ξεχωριστός γεννήτορας, ώστε τα tokens να μην αλλάζουν τα υπόλοιπα mock δεδομένα
+const tokenRand = rng(4821);
+const mockToken = () => Math.floor(tokenRand() * 2 ** 40).toString(36) + Math.floor(tokenRand() * 2 ** 40).toString(36);
 function addAppt(dayOffset: number, hour: number, minute: number, bayId: string, status: AppointmentStatus, vIdx?: number, serviceId?: string) {
   const v = vehicles[vIdx ?? between(0, vehicles.length - 1)];
   const sid = serviceId ?? pick(services).id;
@@ -328,6 +332,7 @@ function addAppt(dayOffset: number, hour: number, minute: number, bayId: string,
     status,
     source: pick(["online", "online", "phone", "walk_in"] as const),
     reminder: dayOffset < 0 ? "sent" : dayOffset <= 1 ? "sent" : "scheduled",
+    token: mockToken(),
     notes:
       s.id === "diag" ? pick(["Ανάβει η λυχνία κινητήρα μετά από 10′ οδήγηση.", "Τρεμοπαίζουν τα φώτα στο ρελαντί.", "Δεν δουλεύει το ταμπλό κατά διαστήματα."]) : undefined,
   });
@@ -385,14 +390,14 @@ export const smsTemplates: SmsTemplate[] = [
     id: "confirm",
     name: "Επιβεβαίωση ραντεβού",
     when: "Μόλις επιβεβαιωθεί το ραντεβού",
-    body: "AutoDiag: Το ραντεβού σας για {υπηρεσία} κλείστηκε για {ημέρα} στις {ώρα}. Για αλλαγές: {τηλέφωνο}",
+    body: "AutoDiag: Το ραντεβού σας για {υπηρεσία} κλείστηκε για {ημέρα} στις {ώρα}. Αλλαγή ή ακύρωση: {σύνδεσμος}",
     enabled: true,
   },
   {
     id: "reminder",
     name: "Υπενθύμιση",
     when: "24 ώρες πριν",
-    body: "AutoDiag: Σας περιμένουμε αύριο στις {ώρα} για {υπηρεσία} ({πινακίδα}). Για ακύρωση: {τηλέφωνο}",
+    body: "AutoDiag: Σας περιμένουμε αύριο στις {ώρα} για {υπηρεσία} ({πινακίδα}). Αλλαγή ή ακύρωση: {σύνδεσμος}",
     enabled: true,
   },
   {

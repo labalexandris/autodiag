@@ -7,6 +7,7 @@ import {
   getRecordsForVehicle,
   getRemindersForVehicle,
   getServices,
+  getShop,
   getVehicleByPlate,
   recordTotal,
 } from "@/lib/data";
@@ -19,6 +20,7 @@ import { Timeline } from "@/components/booklet/timeline";
 import { Upcoming } from "@/components/booklet/upcoming";
 import { RecordForm } from "@/components/booklet/record-form";
 import { ShareButton } from "@/components/booklet/share-button";
+import { EditVehicle } from "@/components/admin/edit-vehicle";
 
 export const dynamic = "force-dynamic";
 
@@ -32,13 +34,16 @@ export default async function VehiclePage({ params }: { params: Promise<{ plate:
   const vehicle = await getVehicleByPlate(decodeURIComponent(plate));
   if (!vehicle) notFound();
 
-  const [owner, records, reminders, services, appts] = await Promise.all([
+  const [owner, records, reminders, services, appts, shop] = await Promise.all([
     getCustomer(vehicle.ownerId),
     getRecordsForVehicle(vehicle.id),
     getRemindersForVehicle(vehicle.id),
     getServices(),
     getAppointments(),
+    getShop(),
   ]);
+  // Οχήματα από online κράτηση έρχονται μόνο με πινακίδα και μάρκα
+  const incomplete = !vehicle.year || !vehicle.fuel || vehicle.km === 0;
   const upcoming = appts.filter((a) => a.vehicleId === vehicle.id && new Date(a.end) > new Date() && !["cancelled", "done"].includes(a.status));
   const spent = records.reduce((s, r) => s + recordTotal(r), 0);
 
@@ -59,14 +64,16 @@ export default async function VehiclePage({ params }: { params: Promise<{ plate:
               {[vehicle.engine, vehicle.fuel, vehicle.year].filter(Boolean).join(", ")}
             </p>
             {vehicle.vin && <p className="mt-0.5 font-cond text-[13px] tracking-[0.04em] text-ink-3">VIN {vehicle.vin}</p>}
+            {incomplete && <p className="mt-1.5 text-[13px] text-[#8a6700]">Λείπουν στοιχεία του οχήματος (έτος, καύσιμο ή χιλιόμετρα).</p>}
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
-          <RecordForm vehicleId={vehicle.id} currentKm={vehicle.km} services={services} />
+          <RecordForm vehicleId={vehicle.id} currentKm={vehicle.km} services={services} technicians={shop.technicians} />
           <Link href={`/admin/calendar?new=1&plate=${encodeURIComponent(vehicle.plate)}`} className="btn btn-outline">
             <CalendarPlus size={16} /> Ραντεβού
           </Link>
           <ShareButton token={vehicle.shareToken} />
+          <EditVehicle vehicle={vehicle} incomplete={incomplete} />
         </div>
       </header>
 

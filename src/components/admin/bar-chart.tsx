@@ -8,6 +8,8 @@ export interface Bar {
   sub: string;
   value: number;
   count: number;
+  /** Η εβδομάδα δεν έχει τελειώσει: σχεδιάζεται διαγραμμισμένη και δεν μετράει στον μέσο όρο */
+  partial?: boolean;
 }
 
 /** Κάθετες μπάρες, μία σειρά, με tooltip στο hover/focus και πίνακα για προσβασιμότητα. */
@@ -17,7 +19,12 @@ export function BarChart({ bars, height = 220 }: { bars: Bar[]; height?: number 
   const step = niceStep(max);
   const top = Math.ceil(max / step) * step;
   const ticks = Array.from({ length: Math.round(top / step) + 1 }, (_, i) => i * step);
-  const avg = bars.reduce((s, b) => s + b.value, 0) / Math.max(1, bars.length);
+  const full = bars.filter((b) => !b.partial);
+  const avg = full.reduce((s, b) => s + b.value, 0) / Math.max(1, full.length);
+  const fill = (b: Bar, dim: boolean) => {
+    const c = dim ? "color-mix(in srgb, var(--brand) 35%, white)" : "var(--brand)";
+    return b.partial ? `repeating-linear-gradient(135deg, ${c} 0 4px, color-mix(in srgb, ${c} 30%, white) 4px 8px)` : c;
+  };
 
   return (
     <div>
@@ -49,13 +56,13 @@ export function BarChart({ bars, height = 220 }: { bars: Bar[]; height?: number 
                 onMouseLeave={() => setHover(null)}
                 onFocus={() => setHover(i)}
                 onBlur={() => setHover(null)}
-                aria-label={`${b.label}: ${fmtEUR(b.value)}, ${b.count} εργασίες`}
+                aria-label={`${b.label}${b.partial ? " (σε εξέλιξη)" : ""}: ${fmtEUR(b.value)}, ${b.count} εργασίες`}
               >
                 <span
                   className="w-full max-w-[28px] rounded-t-[4px] transition-colors"
                   style={{
                     height: `${(b.value / top) * 100}%`,
-                    background: hover === null || hover === i ? "var(--brand)" : "color-mix(in srgb, var(--brand) 35%, white)",
+                    background: fill(b, hover !== null && hover !== i),
                   }}
                 />
               </button>
@@ -69,7 +76,10 @@ export function BarChart({ bars, height = 220 }: { bars: Bar[]; height?: number 
                 bottom: `calc(${(bars[hover].value / top) * 100}% + 8px)`,
               }}
             >
-              <span className="block whitespace-nowrap text-white/70">{bars[hover].label}</span>
+              <span className="block whitespace-nowrap text-white/70">
+                {bars[hover].label}
+                {bars[hover].partial && ", σε εξέλιξη"}
+              </span>
               <span className="block whitespace-nowrap text-[14px] font-semibold tnum">{fmtEUR(bars[hover].value)}</span>
               <span className="block whitespace-nowrap text-white/70 tnum">{bars[hover].count} εργασίες</span>
             </div>
@@ -83,6 +93,12 @@ export function BarChart({ bars, height = 220 }: { bars: Bar[]; height?: number 
           </span>
         ))}
       </div>
+      {bars.some((b) => b.partial) && (
+        <p className="ml-[60px] mt-3 flex items-center gap-2 text-[12.5px] text-ink-3">
+          <span className="inline-block h-3 w-4 rounded-[2px]" style={{ background: fill({ label: "", sub: "", value: 0, count: 0, partial: true }, false) }} aria-hidden />
+          Τρέχουσα εβδομάδα, σε εξέλιξη. Δεν μετράει στον μέσο όρο.
+        </p>
+      )}
       <details className="mt-4 text-[13px]">
         <summary className="cursor-pointer text-ink-3 hover:text-ink">Προβολή ως πίνακας</summary>
         <table className="mt-2 w-full max-w-md text-left tnum">
@@ -96,7 +112,10 @@ export function BarChart({ bars, height = 220 }: { bars: Bar[]; height?: number 
           <tbody>
             {bars.map((b, i) => (
               <tr key={i} className="border-t border-line-2">
-                <td className="py-1">{b.label}</td>
+                <td className="py-1">
+                  {b.label}
+                  {b.partial && <span className="text-ink-3"> (σε εξέλιξη)</span>}
+                </td>
                 <td className="py-1 text-right">{b.count}</td>
                 <td className="py-1 text-right">{fmtEUR(b.value)}</td>
               </tr>

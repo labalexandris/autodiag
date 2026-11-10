@@ -1,8 +1,9 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createBooking, getService, getVehicleByPlate } from "@/lib/data";
+import { BookingError, createBooking, getService, getVehicleByPlate } from "@/lib/data";
 import { isValidPlate, formatPlate } from "@/lib/plate";
+import { normalizeMobile } from "@/lib/phone";
 
 /** Μόνο μάρκα/μοντέλο, για προσυμπλήρωση. Ποτέ στοιχεία ιδιοκτήτη σε δημόσια σελίδα. */
 export async function lookupPlate(plate: string) {
@@ -24,11 +25,18 @@ export async function submitBooking(input: {
   smsConsent: boolean;
 }) {
   if (!isValidPlate(input.plate)) return { ok: false as const, error: "Η πινακίδα δεν είναι σωστή." };
-  if (input.phone.replace(/\D/g, "").length < 10) return { ok: false as const, error: "Το κινητό πρέπει να έχει 10 ψηφία." };
+  const phone = normalizeMobile(input.phone);
+  if (!phone) return { ok: false as const, error: "Γράψε ένα κινητό 10 ψηφίων που αρχίζει από 69." };
+  if (input.name.trim().length < 3) return { ok: false as const, error: "Συμπλήρωσε το όνομά σου." };
   if (new Date(input.start).getTime() < Date.now()) return { ok: false as const, error: "Η ώρα αυτή πέρασε. Διάλεξε άλλη." };
 
-  const appt = await createBooking({ ...input, plate: formatPlate(input.plate) });
-  const service = await getService(appt.serviceId);
-  revalidatePath("/admin", "layout");
-  return { ok: true as const, id: appt.id, status: appt.status, start: appt.start, end: appt.end, service: service?.name ?? "" };
+  try {
+    const appt = await createBooking({ ...input, phone, plate: formatPlate(input.plate), source: "online" });
+    const service = await getService(appt.serviceId);
+    revalidatePath("/admin", "layout");
+    return { ok: true as const, id: appt.id, token: appt.token, status: appt.status, start: appt.start, end: appt.end, service: service?.name ?? "" };
+  } catch (e) {
+    if (e instanceof BookingError) return { ok: false as const, error: e.message, slotTaken: true };
+    throw e;
+  }
 }

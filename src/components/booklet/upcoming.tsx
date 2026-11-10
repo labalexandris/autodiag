@@ -36,7 +36,7 @@ export function Upcoming({ vehicle, reminders }: { vehicle: Vehicle; reminders: 
             <li key={r.id} className="flex items-baseline justify-between gap-3 px-5 py-3.5">
               <span className="text-[14.5px] font-medium">{reminderLabel[r.kind]}</span>
               <span className="text-right">
-                <span className={cn("block text-[13px] tnum", d < 0 ? "font-medium text-fuse-red" : d < 30 ? "font-medium text-[#9a7400]" : "text-ink-2")}>
+                <span className={cn("block text-[13px] tnum", d < 0 ? "font-medium text-fuse-red" : d < 30 ? "font-medium text-[#8a6700]" : "text-ink-2")}>
                   {d < 0 ? `έληξε ${relativeDays(r.dueDate)}` : relativeDays(r.dueDate)}
                 </span>
                 <span className="block text-[12px] text-ink-3 tnum">{fmtDate(r.dueDate)}</span>

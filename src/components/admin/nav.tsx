@@ -1,9 +1,12 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import { usePathname } from "next/navigation";
-import { CalendarDays, ChartColumn, Gauge, Settings, Users, ExternalLink } from "lucide-react";
+import { CalendarDays, ChartColumn, Gauge, Settings, Users, ExternalLink, LogOut, Plus, Search, X } from "lucide-react";
+import { logout } from "@/app/login/actions";
 import { Logo } from "@/components/logo";
+import { PlateSearch, type SearchEntry } from "@/components/plate-search";
 import { cn } from "@/lib/format";
 
 const items = [
@@ -20,14 +23,14 @@ function useActive() {
     exact ? path === href : path === href || path.startsWith(href + "/") || (href === "/admin/customers" && path.startsWith("/admin/vehicles"));
 }
 
-export function Sidebar({ pending }: { pending: number }) {
+export function Sidebar({ pending, canLogout }: { pending: number; canLogout: boolean }) {
   const isActive = useActive();
   return (
     <aside className="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col border-r border-line-2 bg-panel px-3 py-5 lg:flex">
       <Link href="/admin" className="px-2">
-        <Logo />
+        <Logo height={56} />
       </Link>
-      <nav className="mt-8 flex flex-col gap-0.5" aria-label="Κύρια πλοήγηση">
+      <nav className="mt-7 flex flex-col gap-0.5" aria-label="Κύρια πλοήγηση">
         {items.map(({ href, label, icon: Icon, exact }) => {
           const active = isActive(href, exact);
           return (
@@ -55,9 +58,16 @@ export function Sidebar({ pending }: { pending: number }) {
         })}
       </nav>
       <div className="mt-auto space-y-3 px-2">
-        <Link href="/book" target="_blank" className="flex items-center gap-2 text-[13px] text-ink-3 hover:text-brand">
+        <Link href="/book" target="_blank" className="flex items-center gap-2 text-[13px] text-ink-2 hover:text-brand">
           <ExternalLink size={14} /> Σελίδα κρατήσεων
         </Link>
+        {canLogout && (
+          <form action={logout}>
+            <button className="flex items-center gap-2 text-[13px] text-ink-2 hover:text-brand">
+              <LogOut size={14} /> Αποσύνδεση
+            </button>
+          </form>
+        )}
         <div className="flex items-center gap-2.5 border-t border-line-2 pt-4">
           <span className="grid size-8 place-items-center rounded-full bg-ink text-[12px] font-semibold text-white">ΓΠ</span>
           <span className="leading-tight">
@@ -70,30 +80,79 @@ export function Sidebar({ pending }: { pending: number }) {
   );
 }
 
+/** Κεφαλίδα κινητού: λογότυπο και αναζήτηση πινακίδας από κάθε σελίδα. */
+export function MobileHeader({ entries, canLogout }: { entries: SearchEntry[]; canLogout: boolean }) {
+  const [searching, setSearching] = useState(false);
+  return (
+    <header className="sticky top-0 z-30 border-b border-line-2 bg-panel/95 backdrop-blur lg:hidden">
+      <div className="flex h-14 items-center justify-between gap-2 px-4">
+        <Link href="/admin">
+          <Logo />
+        </Link>
+        <div className="flex items-center">
+          <button className="btn btn-ghost w-11 px-0" onClick={() => setSearching((s) => !s)} aria-label={searching ? "Κλείσιμο αναζήτησης" : "Αναζήτηση πινακίδας"} aria-expanded={searching}>
+            {searching ? <X size={20} /> : <Search size={20} />}
+          </button>
+          {canLogout && (
+            <form action={logout}>
+              <button className="btn btn-ghost w-11 px-0" aria-label="Αποσύνδεση">
+                <LogOut size={19} />
+              </button>
+            </form>
+          )}
+        </div>
+      </div>
+      {searching && (
+        <div className="px-4 pb-3">
+          <PlateSearch entries={entries} autoFocus onNavigate={() => setSearching(false)} />
+        </div>
+      )}
+    </header>
+  );
+}
+
 export function MobileNav({ pending }: { pending: number }) {
   const isActive = useActive();
+  const path = usePathname();
   return (
-    <nav
-      className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 border-t border-line-2 bg-panel/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden"
-      aria-label="Κύρια πλοήγηση"
-    >
-      {items.map(({ href, label, icon: Icon, exact }) => {
-        const active = isActive(href, exact);
-        return (
-          <Link
-            key={href}
-            href={href}
-            aria-current={active ? "page" : undefined}
-            className={cn("relative flex h-16 flex-col items-center justify-center gap-1 text-[11px]", active ? "text-brand" : "text-ink-3")}
-          >
-            <Icon size={21} strokeWidth={active ? 2.2 : 1.8} />
-            {label}
-            {href === "/admin" && pending > 0 && (
-              <span className="absolute right-[calc(50%-20px)] top-2.5 size-2 rounded-full bg-signal ring-2 ring-panel" />
-            )}
-          </Link>
-        );
-      })}
-    </nav>
+    <>
+      {/* Νέο ραντεβού με τον αντίχειρα, από κάθε σελίδα εκτός του ημερολογίου που έχει το δικό του κουμπί */}
+      {!path.startsWith("/admin/calendar") && (
+        <Link
+          href="/admin/calendar?new=1"
+          aria-label="Νέο ραντεβού"
+          className="fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] right-4 z-40 grid size-14 place-items-center rounded-full bg-brand text-white shadow-[0_10px_24px_-8px_rgba(30,95,184,0.7)] active:bg-brand-ink lg:hidden"
+        >
+          <Plus size={26} />
+        </Link>
+      )}
+      <nav
+        className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 border-t border-line-2 bg-panel/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden"
+        aria-label="Κύρια πλοήγηση"
+      >
+        {items.map(({ href, label, icon: Icon, exact }) => {
+          const active = isActive(href, exact);
+          return (
+            <Link
+              key={href}
+              href={href}
+              aria-current={active ? "page" : undefined}
+              className={cn("relative flex h-16 flex-col items-center justify-center gap-1 text-[11px]", active ? "font-medium text-brand" : "text-ink-2")}
+            >
+              <Icon size={21} strokeWidth={active ? 2.2 : 1.8} />
+              {label}
+              {href === "/admin" && pending > 0 && (
+                <span
+                  className="absolute left-[calc(50%+4px)] top-1.5 grid h-[18px] min-w-[18px] place-items-center rounded-full bg-signal px-1 text-[11px] font-semibold text-ink ring-2 ring-panel tnum"
+                  aria-label={`${pending} αιτήματα προς έγκριση`}
+                >
+                  {pending}
+                </span>
+              )}
+            </Link>
+          );
+        })}
+      </nav>
+    </>
   );
 }

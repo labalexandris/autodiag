@@ -47,7 +47,7 @@ export default async function SettingsPage() {
                   <td className="px-5 py-3 font-medium">{s.name}</td>
                   <td className="px-3 py-3 tnum">{s.durationMin}′</td>
                   <td className="px-3 py-3 tnum">{s.priceFrom === 0 ? "Δωρεάν τοποθέτηση" : s.priceFrom ? fmtEUR(s.priceFrom) : <span className="text-ink-3">Μετά από έλεγχο</span>}</td>
-                  <td className="px-5 py-3">{s.requiresApproval ? <span className="text-[#9a7400]">Χειροκίνητη</span> : <span className="text-ink-2">Αυτόματη</span>}</td>
+                  <td className="px-5 py-3">{s.requiresApproval ? <span className="text-[#8a6700]">Χειροκίνητη</span> : <span className="text-ink-2">Αυτόματη</span>}</td>
                 </tr>
               ))}
             </tbody>

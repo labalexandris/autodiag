@@ -1,10 +1,13 @@
 import Link from "next/link";
 import { CalendarCheck2, Plus } from "lucide-react";
-import { getAppointments, getBays } from "@/lib/data";
+import { getAppointments, getBays, getServices, getShop } from "@/lib/data";
 import { getDueSoon, getSearchEntries, hydrateAppointments } from "@/lib/views";
+import { halfHourOptions, hoursBounds } from "@/lib/hours";
 import { fmtDayLong, fmtTime } from "@/lib/format";
 import { PlateSearch } from "@/components/plate-search";
+import { StatusLegend } from "@/components/status";
 import { DayBoard } from "@/components/admin/day-board";
+import { AppointmentProvider } from "@/components/admin/appointment-sheet";
 import { Approvals } from "@/components/admin/approvals";
 import { DueList } from "@/components/admin/due-list";
 
@@ -17,13 +20,16 @@ export default async function TodayPage() {
   const to = new Date(from);
   to.setDate(to.getDate() + 1);
 
-  const [bays, today, all, entries, due] = await Promise.all([
+  const [bays, services, shop, today, all, entries, due] = await Promise.all([
     getBays(),
+    getServices(),
+    getShop(),
     getAppointments({ from, to }).then(hydrateAppointments),
     getAppointments().then(hydrateAppointments),
     getSearchEntries(),
     getDueSoon(),
   ]);
+  const { start, end } = hoursBounds(shop);
 
   const active = today.filter((t) => t.appt.status !== "cancelled");
   const pending = all.filter((t) => t.appt.status === "pending");
@@ -53,16 +59,22 @@ export default async function TodayPage() {
               )}
             </p>
           </div>
-          <Link href="/admin/calendar?new=1" className="btn btn-primary">
+          <Link href="/admin/calendar?new=1" className="btn btn-primary max-lg:hidden">
             <Plus size={17} /> Νέο ραντεβού
           </Link>
         </div>
         <PlateSearch entries={entries} />
       </header>
 
-      <section aria-labelledby="board">
+      <section aria-labelledby="board" className="space-y-3">
         <h2 id="board" className="sr-only">Πρόγραμμα ημέρας</h2>
-        <DayBoard bays={bays} items={active} />
+        <AppointmentProvider services={services} technicians={shop.technicians} times={halfHourOptions(shop)}>
+          <DayBoard bays={bays} items={active} start={start} end={end} />
+        </AppointmentProvider>
+        <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
+          <StatusLegend />
+          <p className="text-[13px] text-ink-3">Πάτα ένα ραντεβού για το επόμενο βήμα.</p>
+        </div>
       </section>
 
       <div className="grid gap-6 lg:grid-cols-[1.1fr_1fr]">
@@ -85,8 +97,14 @@ export default async function TodayPage() {
               customer: p.customer.name,
               service: p.service.name,
               notes: p.appt.notes,
+              ownerMismatch: p.appt.customerId !== p.vehicle.ownerId,
             }))}
           />
+          {pending.length > 5 && (
+            <Link href="/admin/calendar" className="block border-t border-line-2 px-5 py-3 text-[14px] font-medium text-brand hover:underline">
+              Και άλλα {pending.length - 5} στο ημερολόγιο
+            </Link>
+          )}
         </section>
 
         <section className="panel overflow-hidden" aria-labelledby="due">

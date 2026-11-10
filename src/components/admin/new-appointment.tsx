@@ -1,52 +1,79 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, useTransition } from "react";
-import { useRouter, useSearchParams, usePathname } from "next/navigation";
-import { Plus, X } from "lucide-react";
+import { useMemo, useState, useTransition } from "react";
+import { useRouter, usePathname } from "next/navigation";
+import { Plus } from "lucide-react";
 import type { Service } from "@/lib/types";
 import type { SearchEntry } from "@/components/plate-search";
 import { createPhoneBooking } from "@/app/admin/actions";
 import { normalizePlate, formatPlate, isValidPlate } from "@/lib/plate";
+import { normalizePhone } from "@/lib/phone";
 import { Plate } from "@/components/plate";
+import { Sheet } from "@/components/sheet";
 import { toast } from "@/components/toast";
-import { cn } from "@/lib/format";
 
-function todayStr() {
+const pad = (n: number) => String(n).padStart(2, "0");
+const dateStr = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+
+/** Σήμερα, ή η επόμενη ημέρα που είναι ανοιχτό το συνεργείο. */
+function nextOpenDay(openWeekdays: number[]) {
   const d = new Date();
-  if (d.getDay() === 6) d.setDate(d.getDate() + 2);
-  if (d.getDay() === 0) d.setDate(d.getDate() + 1);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  for (let i = 0; i < 7 && !openWeekdays.includes(d.getDay()); i++) d.setDate(d.getDate() + 1);
+  return dateStr(d);
 }
 
-/** Ραντεβού από τηλέφωνο: πινακίδα πρώτα, και αν είναι γνωστή, τα υπόλοιπα συμπληρώνονται μόνα τους. */
-export function NewAppointment({ services, entries }: { services: Service[]; entries: SearchEntry[] }) {
+/**
+ * Ραντεβού από τηλέφωνο: πινακίδα πρώτα, και αν είναι γνωστή, τα υπόλοιπα
+ * συμπληρώνονται μόνα τους. Ανοίγει και από τη διεύθυνση:
+ * `?new=1`, `?new=1&plate=ΙΚΒ4821`, `?new=1&at=2026-11-12T10:00` (κλικ σε κενή ώρα).
+ * Η σελίδα περνά αυτές τις παραμέτρους ως `initial` και το ξαναδημιουργεί (key)
+ * όταν αλλάζουν. Δεν διαβάζονται με useSearchParams, ώστε το κουμπί να μην
+ * περιμένει Suspense για να ενεργοποιηθεί.
+ */
+export function NewAppointment({
+  services,
+  entries,
+  times,
+  openWeekdays,
+  initial,
+}: {
+  services: Service[];
+  entries: SearchEntry[];
+  times: string[];
+  openWeekdays: number[];
+  initial: { open: boolean; plate?: string; at?: string };
+}) {
   const router = useRouter();
   const pathname = usePathname();
-  const params = useSearchParams();
-  const dialog = useRef<HTMLDialogElement>(null);
-  const [open, setOpen] = useState(params.get("new") === "1");
-  const [plate, setPlate] = useState(params.get("plate") ?? "");
+  const at = initial.at?.match(/^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})$/);
+
+  const [open, setOpen] = useState(initial.open);
+  const [plate, setPlate] = useState(initial.plate ?? "");
   const [serviceId, setServiceId] = useState(services[0].id);
-  const [date, setDate] = useState(todayStr());
-  const [time, setTime] = useState("09:00");
+  const [date, setDate] = useState(at?.[1] ?? nextOpenDay(openWeekdays));
+  const [time, setTime] = useState(at?.[2] ?? times[2] ?? times[0] ?? "09:00");
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [car, setCar] = useState("");
   const [notes, setNotes] = useState("");
+  const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
-
-  useEffect(() => {
-    if (open) dialog.current?.showModal();
-    else dialog.current?.close();
-  }, [open]);
 
   const known = useMemo(() => entries.find((e) => normalizePlate(e.plate) === normalizePlate(plate)), [plate, entries]);
   const plateOk = isValidPlate(plate);
-  const valid = plateOk && (known || (name.trim() && phone.replace(/\D/g, "").length >= 10 && car.trim()));
+  const valid = plateOk && !!date && (known || (name.trim().length > 2 && normalizePhone(phone) && car.trim()));
+  const closedDay = !!date && !openWeekdays.includes(new Date(`${date}T12:00:00`).getDay());
+  const timeOptions = times.includes(time) ? times : [time, ...times];
 
   const close = () => {
     setOpen(false);
-    if (params.get("new")) router.replace(pathname);
+    setError(null);
+    if (initial.open) {
+      // Κρατά την εβδομάδα που βλέπει ο χρήστης, βγάζει μόνο τις παραμέτρους του παραθύρου
+      const rest = new URLSearchParams(window.location.search);
+      ["new", "plate", "at"].forEach((k) => rest.delete(k));
+      router.replace(rest.size ? `${pathname}?${rest}` : pathname);
+    }
   };
 
   const submit = (e: React.FormEvent) => {
@@ -54,7 +81,8 @@ export function NewAppointment({ services, entries }: { services: Service[]; ent
     if (!valid) return;
     const [make, ...model] = car.trim().split(" ");
     start(async () => {
-      await createPhoneBooking({
+      setError(null);
+      const r = await createPhoneBooking({
         plate: formatPlate(plate),
         serviceId,
         start: new Date(`${date}T${time}:00`).toISOString(),
@@ -64,35 +92,34 @@ export function NewAppointment({ services, entries }: { services: Service[]; ent
         model: model.join(" "),
         notes: notes.trim() || undefined,
       });
+      if (!r.ok) return setError(r.error);
       toast(`Το ραντεβού για το ${formatPlate(plate)} καταχωρήθηκε`);
-      close();
       setPlate("");
       setNotes("");
+      close();
     });
   };
-
-  const times = Array.from({ length: 17 }, (_, i) => `${String(8 + Math.floor(i / 2)).padStart(2, "0")}:${i % 2 ? "30" : "00"}`);
 
   return (
     <>
       <button className="btn btn-primary" onClick={() => setOpen(true)}>
         <Plus size={17} /> Νέο ραντεβού
       </button>
-      <dialog
-        ref={dialog}
-        onClose={close}
-        onClick={(e) => e.target === dialog.current && close()}
-        className="m-0 mt-auto max-h-[94dvh] w-full max-w-none overflow-hidden rounded-t-2xl bg-panel p-0 text-ink backdrop:bg-ink/40 sm:m-auto sm:max-w-[520px] sm:rounded-2xl"
-        aria-labelledby="na-title"
-      >
-        <form onSubmit={submit} className="flex max-h-[94dvh] flex-col">
-          <header className="flex items-center justify-between border-b border-line-2 px-5 py-4">
-            <h2 id="na-title" className="font-cond text-[21px] font-semibold">Νέο ραντεβού</h2>
-            <button type="button" className="btn btn-ghost btn-sm -mr-2" onClick={close} aria-label="Κλείσιμο">
-              <X size={18} />
-            </button>
-          </header>
-          <div className="flex-1 space-y-5 overflow-y-auto px-5 py-5">
+      {open && (
+        <Sheet
+          title="Νέο ραντεβού"
+          onClose={close}
+          onSubmit={submit}
+          footer={
+            <>
+              <span className="text-[13px] text-ink-3">Θα σταλεί SMS επιβεβαίωσης</span>
+              <button className="btn btn-primary" disabled={!valid || pending}>
+                {pending ? "Αποθήκευση…" : "Καταχώρηση ραντεβού"}
+              </button>
+            </>
+          }
+        >
+          <div className="space-y-5">
             <label className="block">
               <span className="mb-1.5 block text-[14px] font-medium">Πινακίδα</span>
               <input
@@ -126,7 +153,7 @@ export function NewAppointment({ services, entries }: { services: Service[]; ent
             {plateOk && !known && (
               <div className="grid gap-3 sm:grid-cols-2">
                 <input className="field" placeholder="Ονοματεπώνυμο" value={name} onChange={(e) => setName(e.target.value)} aria-label="Ονοματεπώνυμο" />
-                <input className="field tnum" placeholder="Κινητό" inputMode="tel" value={phone} onChange={(e) => setPhone(e.target.value)} aria-label="Κινητό" />
+                <input className="field tnum" placeholder="Τηλέφωνο" inputMode="tel" value={phone} onChange={(e) => setPhone(e.target.value)} aria-label="Τηλέφωνο" />
                 <input className="field sm:col-span-2" placeholder="Μάρκα και μοντέλο, π.χ. Fiat Panda" value={car} onChange={(e) => setCar(e.target.value)} aria-label="Μάρκα και μοντέλο" />
               </div>
             )}
@@ -142,34 +169,34 @@ export function NewAppointment({ services, entries }: { services: Service[]; ent
               </select>
             </label>
 
-            <div className="grid grid-cols-[1fr_120px] gap-3">
-              <label className="block">
-                <span className="mb-1.5 block text-[14px] font-medium">Ημέρα</span>
-                <input type="date" className="field tnum" value={date} onChange={(e) => setDate(e.target.value)} />
-              </label>
-              <label className="block">
-                <span className="mb-1.5 block text-[14px] font-medium">Ώρα</span>
-                <select className="field tnum" value={time} onChange={(e) => setTime(e.target.value)}>
-                  {times.map((t) => (
-                    <option key={t}>{t}</option>
-                  ))}
-                </select>
-              </label>
+            <div>
+              <div className="grid grid-cols-[1fr_120px] gap-3">
+                <label className="block">
+                  <span className="mb-1.5 block text-[14px] font-medium">Ημέρα</span>
+                  <input type="date" className="field tnum" value={date} onChange={(e) => setDate(e.target.value)} />
+                </label>
+                <label className="block">
+                  <span className="mb-1.5 block text-[14px] font-medium">Ώρα</span>
+                  <select className="field tnum" value={time} onChange={(e) => setTime(e.target.value)}>
+                    {timeOptions.map((t) => (
+                      <option key={t}>{t}</option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+              {closedDay && <p className="mt-1.5 text-[13px] text-[#8a6700]">Αυτή την ημέρα το συνεργείο είναι κλειστό. Καταχωρείται μόνο αν το θέλεις.</p>}
+              {error && <p className="mt-1.5 text-[13px] text-fuse-red">{error}</p>}
             </div>
 
             <label className="block">
-              <span className="mb-1.5 block text-[14px] font-medium">Σημείωση <span className="font-normal text-ink-3">(προαιρετικό)</span></span>
+              <span className="mb-1.5 block text-[14px] font-medium">
+                Σημείωση <span className="font-normal text-ink-3">(προαιρετικό)</span>
+              </span>
               <textarea className="field" rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Τι περιγράφει ο πελάτης" />
             </label>
           </div>
-          <footer className="flex items-center justify-between gap-3 border-t border-line-2 px-5 py-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
-            <span className={cn("text-[13px] text-ink-3")}>Θα σταλεί SMS επιβεβαίωσης</span>
-            <button className="btn btn-primary" disabled={!valid || pending}>
-              {pending ? "Αποθήκευση…" : "Καταχώρηση ραντεβού"}
-            </button>
-          </footer>
-        </form>
-      </dialog>
+        </Sheet>
+      )}
     </>
   );
 }

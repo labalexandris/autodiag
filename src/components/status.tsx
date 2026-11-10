@@ -22,3 +22,29 @@ export function StatusBadge({ status, className }: { status: AppointmentStatus; 
     </span>
   );
 }
+
+/**
+ * Το φόντο και το περίγραμμα μιας κάρτας ραντεβού ανά κατάσταση. Η κατάσταση
+ * δεν φαίνεται μόνο από το χρώμα: το «προς έγκριση» έχει διακεκομμένο
+ * περίγραμμα και το «ολοκληρώθηκε» ένα ✓.
+ */
+export const statusCard: Record<AppointmentStatus, string> = {
+  pending: "border-dashed border-[#c99a12] bg-signal-soft",
+  confirmed: "border-line bg-panel",
+  in_progress: "border-fuse-orange/60 bg-[#fdf1e8]",
+  done: "border-fuse-green/35 bg-[#eef7f1]",
+  no_show: "border-fuse-red/35 bg-[#fcecec]",
+  cancelled: "border-line-2 bg-sunk",
+};
+
+export function StatusLegend({ className }: { className?: string }) {
+  return (
+    <ul className={cn("flex flex-wrap gap-x-5 gap-y-2 text-[13px] text-ink-2", className)} aria-label="Υπόμνημα καταστάσεων">
+      {(["pending", "confirmed", "in_progress", "done", "no_show"] as const).map((s) => (
+        <li key={s} className="flex items-center gap-1.5">
+          <Fuse color={statusMeta[s].fuse} /> {statusMeta[s].label}
+        </li>
+      ))}
+    </ul>
+  );
+}

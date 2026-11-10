@@ -1,7 +1,7 @@
 "use client";
 
 import { useOptimistic, useTransition } from "react";
-import { Check, X, MessageSquareText } from "lucide-react";
+import { Check, X, MessageSquareText, TriangleAlert } from "lucide-react";
 import { updateStatus } from "@/app/admin/actions";
 import { Plate } from "@/components/plate";
 import { toast } from "@/components/toast";
@@ -15,6 +15,7 @@ export interface PendingItem {
   customer: string;
   service: string;
   notes?: string;
+  ownerMismatch?: boolean;
 }
 
 export function Approvals({ items }: { items: PendingItem[] }) {
@@ -52,6 +53,12 @@ export function Approvals({ items }: { items: PendingItem[] }) {
             <p className="mt-1.5 flex gap-2 text-[13px] text-ink-2">
               <MessageSquareText size={14} className="mt-0.5 shrink-0 text-ink-3" />
               {it.notes}
+            </p>
+          )}
+          {it.ownerMismatch && (
+            <p className="mt-1.5 flex gap-2 text-[13px] text-[#8a6700]">
+              <TriangleAlert size={14} className="mt-0.5 shrink-0" />
+              Το έκλεισε άλλος από τον ιδιοκτήτη που έχουμε για αυτή την πινακίδα.
             </p>
           )}
           <div className="mt-3 flex gap-2">

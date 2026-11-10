@@ -12,6 +12,7 @@ const sample: Record<string, string> = {
   "{ώρα}": "10:30",
   "{πινακίδα}": "ΙΚΒ-4821",
   "{τηλέφωνο}": "2106398145",
+  "{σύνδεσμος}": "autodiag.gr/r/k3x9p2",
   "{κλείσιμο}": "17:00",
   "{εργασία}": "αλλαγή λαδιών",
 };
@@ -98,7 +99,7 @@ export function SmsTemplates({ initial }: { initial: SmsTemplate[] }) {
             <p className="mb-2 text-center text-[11.5px] font-medium text-ink-3">AUTODIAG</p>
             <div className="max-w-[92%] whitespace-pre-wrap break-words rounded-2xl rounded-bl-md bg-panel px-3.5 py-2.5 text-[14px] leading-snug shadow-[0_1px_0_var(--line)]">{preview}</div>
           </div>
-          <p className={cn("mt-2 text-[12.5px] tnum", info.segments > 1 ? "text-[#9a7400]" : "text-ink-3")}>
+          <p className={cn("mt-2 text-[12.5px] tnum", info.segments > 1 ? "text-[#8a6700]" : "text-ink-3")}>
             {info.length} χαρακτήρες, {info.segments} {info.segments === 1 ? "SMS" : "SMS (χρεώνεται κάθε ένα)"}, {info.encoding}
           </p>
         </div>

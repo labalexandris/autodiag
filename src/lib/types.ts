@@ -41,8 +41,9 @@ export interface Vehicle {
   plate: string;
   make: string;
   model: string;
-  year: number;
-  fuel: Fuel;
+  /** Άγνωστα όταν το όχημα δημιουργείται από online κράτηση */
+  year?: number;
+  fuel?: Fuel;
   engine?: string;
   vin?: string;
   ownerId: string;
@@ -73,6 +74,8 @@ export interface Appointment {
   source: AppointmentSource;
   notes?: string;
   reminder: "sent" | "scheduled" | "off";
+  /** Δημόσιο token: ο πελάτης αλλάζει ή ακυρώνει το ραντεβού από το SMS */
+  token: string;
 }
 
 export interface RecordItem {
@@ -123,5 +126,8 @@ export interface Shop {
   phone: string;
   email: string;
   address: string;
+  /** Σύνδεσμος χάρτη (προαιρετικός, όταν συμπληρωθεί η ακριβής διεύθυνση) */
+  mapsUrl?: string;
+  technicians: string[];
   hours: { day: number; open?: string; close?: string }[];
 }

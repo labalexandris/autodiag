@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Phone } from "lucide-react";
 import { getRecordsForVehicle, getRemindersForVehicle, getShop, getVehicleByToken } from "@/lib/data";
+import { normalizePlate } from "@/lib/plate";
 import { Logo } from "@/components/logo";
 import { Plate } from "@/components/plate";
 import { Odometer } from "@/components/booklet/odometer";
@@ -44,7 +45,7 @@ export default async function PublicBooklet({ params }: { params: Promise<{ toke
         <section className="panel overflow-hidden">
           <h2 className="flex items-center justify-between border-b border-line-2 px-5 py-3 text-[15px] font-semibold">
             Επόμενα
-            <Link href="/book" className="text-[14px] font-medium text-brand hover:underline">
+            <Link href={`/book?plate=${encodeURIComponent(normalizePlate(vehicle.plate))}`} className="text-[14px] font-medium text-brand hover:underline">
               Κλείσε ραντεβού
             </Link>
           </h2>

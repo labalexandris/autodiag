@@ -7,10 +7,10 @@ import { BookingFlow } from "./booking-flow";
 export const metadata = { title: "Κλείσε ραντεβού" };
 export const dynamic = "force-dynamic";
 
-export default async function BookPage({ searchParams }: { searchParams: Promise<{ s?: string }> }) {
+export default async function BookPage({ searchParams }: { searchParams: Promise<{ s?: string; plate?: string }> }) {
   const [services, shop] = await Promise.all([getServices(), getShop()]);
   const availability = Object.fromEntries(await Promise.all(services.map(async (s) => [s.id, await getAvailability(s.id, 14)] as const)));
-  const preselect = (await searchParams).s;
+  const { s: preselect, plate } = await searchParams;
 
   return (
     <div className="min-h-dvh bg-bg">
@@ -25,7 +25,7 @@ export default async function BookPage({ searchParams }: { searchParams: Promise
           </a>
         </div>
       </header>
-      <BookingFlow services={services} availability={availability} shop={shop} preselect={preselect} />
+      <BookingFlow services={services} availability={availability} shop={shop} preselect={preselect} initialPlate={plate} />
     </div>
   );
 }

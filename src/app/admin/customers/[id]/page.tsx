@@ -6,6 +6,7 @@ import {
   getCustomer,
   getRecordsForVehicle,
   getServices,
+  getVehicles,
   getVehiclesForCustomer,
   recordTotal,
 } from "@/lib/data";
@@ -14,6 +15,7 @@ import { normalizePlate } from "@/lib/plate";
 import { sourceLabel } from "@/lib/labels";
 import { Plate } from "@/components/plate";
 import { StatusBadge } from "@/components/status";
+import { EditCustomer } from "@/components/admin/edit-customer";
 
 export const dynamic = "force-dynamic";
 
@@ -26,7 +28,7 @@ export default async function CustomerPage({ params }: { params: Promise<{ id: s
   const { id } = await params;
   const customer = await getCustomer(id);
   if (!customer) notFound();
-  const [vehicles, appts, services] = await Promise.all([getVehiclesForCustomer(id), getAppointmentsForCustomer(id), getServices()]);
+  const [vehicles, appts, services, allVehicles] = await Promise.all([getVehiclesForCustomer(id), getAppointmentsForCustomer(id), getServices(), getVehicles()]);
   const recordsByVehicle = await Promise.all(vehicles.map((v) => getRecordsForVehicle(v.id)));
   const allRecords = recordsByVehicle.flat();
   const spent = allRecords.reduce((s, r) => s + recordTotal(r), 0);
@@ -53,6 +55,7 @@ export default async function CustomerPage({ params }: { params: Promise<{ id: s
           <a href={`sms:${customer.phone.replace(/\s/g, "")}`} className="btn btn-outline">
             <MessageSquare size={16} /> SMS
           </a>
+          <EditCustomer customer={customer} />
         </div>
       </header>
 
@@ -60,6 +63,7 @@ export default async function CustomerPage({ params }: { params: Promise<{ id: s
         <div className="min-w-0 space-y-8">
           <section aria-labelledby="veh">
             <h2 id="veh" className="mb-3 text-[18px] font-semibold">Οχήματα</h2>
+            {vehicles.length === 0 && <p className="panel px-5 py-4 text-[14px] text-ink-2">Δεν έχει όχημα στο όνομά του. Έχει κλείσει ραντεβού για όχημα άλλου ιδιοκτήτη.</p>}
             <div className="grid gap-3 sm:grid-cols-2">
               {vehicles.map((v, i) => {
                 const last = recordsByVehicle[i][0];
@@ -70,7 +74,7 @@ export default async function CustomerPage({ params }: { params: Promise<{ id: s
                       {v.make} {v.model}
                     </p>
                     <p className="text-[13px] text-ink-3">
-                      {v.year}, {v.fuel}, {fmtNum(v.km)} km
+                      {[v.year, v.fuel, `${fmtNum(v.km)} km`].filter(Boolean).join(", ")}
                     </p>
                     <p className="mt-3 border-t border-line-2 pt-3 text-[13px] text-ink-2">
                       {last ? (
@@ -92,7 +96,7 @@ export default async function CustomerPage({ params }: { params: Promise<{ id: s
             <div className="panel overflow-hidden">
               <ul className="divide-y divide-line-2">
                 {appts.slice(0, 12).map((a) => {
-                  const v = vehicles.find((x) => x.id === a.vehicleId);
+                  const v = allVehicles.find((x) => x.id === a.vehicleId);
                   return (
                     <li key={a.id} className="grid grid-cols-[88px_1fr_auto] items-center gap-4 px-5 py-3">
                       <span className="text-[14px] tnum">

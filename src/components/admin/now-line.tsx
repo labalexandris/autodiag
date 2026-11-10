@@ -1,10 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 /** Κίτρινη γραμμή «τώρα» στον πίνακα ημέρας. Υπολογίζεται μόνο στον client. */
 export function NowLine({ start, end, offsetPx }: { start: number; end: number; offsetPx: number }) {
   const [pct, setPct] = useState<number | null>(null);
+  const ref = useRef<HTMLDivElement>(null);
+  const centered = useRef(false);
+
   useEffect(() => {
     const tick = () => {
       const d = new Date();
@@ -17,9 +20,19 @@ export function NowLine({ start, end, offsetPx }: { start: number; end: number; 
     return () => clearInterval(t);
   }, [start, end]);
 
+  // Σε στενή οθόνη ο πίνακας κυλάει οριζόντια: ξεκινά με το «τώρα» στη μέση
+  useEffect(() => {
+    const el = ref.current;
+    const scroller = el?.closest<HTMLElement>(".overflow-x-auto");
+    if (!el || !scroller || centered.current || scroller.scrollWidth <= scroller.clientWidth) return;
+    centered.current = true;
+    scroller.scrollLeft = el.offsetLeft - scroller.clientWidth / 2;
+  }, [pct]);
+
   if (pct === null) return null;
   return (
     <div
+      ref={ref}
       className="pointer-events-none absolute bottom-0 top-0 z-10"
       style={{ left: `calc(${offsetPx}px + (100% - ${offsetPx}px) * ${pct / 100})` }}
       aria-hidden

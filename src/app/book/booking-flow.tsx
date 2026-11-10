@@ -1,16 +1,21 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import Link from "next/link";
+import { useEffect, useRef, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { ArrowLeft, Check, CalendarPlus, Clock, MessageSquareText, Phone } from "lucide-react";
 import type { Service, Shop } from "@/lib/types";
-import { isValidPlate } from "@/lib/plate";
-import { fmtEUR, fmtDuration, fmtTime, fmtDayLong, fmtDayShort, fmtDayNum, fmtMonthShort, cn } from "@/lib/format";
+import { isValidPlate, formatPlate } from "@/lib/plate";
+import { normalizeMobile } from "@/lib/phone";
+import { hoursSummary } from "@/lib/hours";
+import { fmtEUR, fmtDuration, fmtTime, fmtDayLong, fmtDayNum, fmtMonthShort, cn } from "@/lib/format";
+import { SlotPicker, type SlotDay } from "@/components/slot-picker";
 import { ServiceIcon } from "@/components/service-icon";
 import { PlateInput } from "@/components/plate-input";
 import { Plate } from "@/components/plate";
 import { lookupPlate, submitBooking } from "./actions";
 
-type Day = { date: string; slots: string[]; closed: boolean };
+type Day = SlotDay;
 type Result = Extract<Awaited<ReturnType<typeof submitBooking>>, { ok: true }>;
 
 const steps = ["Υπηρεσία", "Όχημα", "Ημέρα και ώρα", "Στοιχεία", "Επιβεβαίωση"];
@@ -20,16 +25,20 @@ export function BookingFlow({
   availability,
   shop,
   preselect,
+  initialPlate,
 }: {
   services: Service[];
   availability: Record<string, Day[]>;
   shop: Shop;
   preselect?: string;
+  /** Από το βιβλιάριο: η πινακίδα έρχεται συμπληρωμένη */
+  initialPlate?: string;
 }) {
+  const router = useRouter();
   const initialService = services.find((s) => s.id === preselect);
   const [step, setStep] = useState(initialService ? 1 : 0);
   const [serviceId, setServiceId] = useState<string | undefined>(initialService?.id);
-  const [plate, setPlate] = useState("");
+  const [plate, setPlate] = useState(initialPlate && isValidPlate(initialPlate) ? formatPlate(initialPlate) : "");
   const [make, setMake] = useState("");
   const [model, setModel] = useState("");
   const [lookup, setLookup] = useState<{ plate: string; found: boolean }>({ plate: "", found: false });
@@ -49,7 +58,6 @@ export function BookingFlow({
 
   const service = services.find((s) => s.id === serviceId);
   const days = serviceId ? availability[serviceId] : [];
-  const selectedDay = days.find((d) => d.date === day);
 
   const known = lookup.plate === plate && lookup.found;
 
@@ -80,7 +88,7 @@ export function BookingFlow({
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, [step, result]);
 
-  const phoneOk = phone.replace(/\D/g, "").length === 10;
+  const phoneOk = !!normalizeMobile(phone);
   const canNext = [
     !!serviceId,
     isValidPlate(plate) && make.trim().length > 1,
@@ -113,17 +121,15 @@ export function BookingFlow({
         notes: notes.trim() || undefined,
         smsConsent: consent,
       });
-      if (r.ok) setResult(r);
-      else setError(r.error);
+      if (r.ok) return setResult(r);
+      setError(r.error);
+      if ("slotTaken" in r) {
+        // Η ώρα κλείστηκε από άλλον στο μεταξύ: φρέσκια διαθεσιμότητα και πίσω στην επιλογή ώρας
+        setSlot(undefined);
+        setStep(2);
+        router.refresh();
+      }
     });
-
-  const slotGroups = useMemo(() => {
-    const s = selectedDay?.slots ?? [];
-    return [
-      { label: "Πρωί", items: s.filter((x) => new Date(x).getHours() < 12) },
-      { label: "Μεσημέρι", items: s.filter((x) => new Date(x).getHours() >= 12) },
-    ].filter((g) => g.items.length);
-  }, [selectedDay]);
 
   if (result) return <Success result={result} plate={plate} shop={shop} />;
 
@@ -237,62 +243,20 @@ export function BookingFlow({
               <p className="mt-1.5 text-[15px] text-ink-2">
                 {service.name}, περίπου {fmtDuration(service.durationMin, true)}.
               </p>
-              <div className="-mx-4 mt-6 overflow-x-auto px-4 pb-2 sm:mx-0 sm:px-0">
-                <div className="flex gap-2" role="radiogroup" aria-label="Ημέρα">
-                  {days.map((d) => {
-                    const sel = d.date === day;
-                    const disabled = d.closed || d.slots.length === 0;
-                    return (
-                      <button
-                        key={d.date}
-                        role="radio"
-                        aria-checked={sel}
-                        disabled={disabled}
-                        onClick={() => {
-                          setDay(d.date);
-                          setSlot(undefined);
-                        }}
-                        className={cn(
-                          "flex w-[62px] shrink-0 flex-col items-center rounded-xl border py-2.5 transition-colors",
-                          sel ? "border-brand bg-brand text-white" : "border-line-2 bg-panel hover:border-line",
-                          disabled && "cursor-not-allowed border-transparent bg-transparent text-ink-3/60 hover:border-transparent",
-                        )}
-                      >
-                        <span className={cn("text-[12px] capitalize", sel ? "text-white/80" : "text-ink-3")}>{fmtDayShort(d.date)}</span>
-                        <span className="font-cond text-[22px] font-semibold leading-tight tnum">{fmtDayNum(d.date)}</span>
-                        <span className={cn("text-[11px]", sel ? "text-white/80" : "text-ink-3")}>{d.closed ? "κλειστά" : d.slots.length === 0 ? "πλήρες" : fmtMonthShort(d.date)}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {selectedDay && (
-                <div className="mt-6 space-y-5">
-                  <p className="text-[15px] font-medium first-letter:uppercase">{fmtDayLong(selectedDay.date)}</p>
-                  {slotGroups.map((g) => (
-                    <div key={g.label}>
-                      <p className="mb-2 text-[13px] text-ink-3">{g.label}</p>
-                      <div className="grid grid-cols-4 gap-2 sm:grid-cols-6" role="radiogroup" aria-label={`Ώρες, ${g.label}`}>
-                        {g.items.map((s) => (
-                          <button
-                            key={s}
-                            role="radio"
-                            aria-checked={slot === s}
-                            onClick={() => setSlot(s)}
-                            className={cn(
-                              "h-11 rounded-lg border text-[15px] font-medium tnum transition-colors",
-                              slot === s ? "border-brand bg-brand text-white" : "border-line-2 bg-panel hover:border-brand hover:text-brand",
-                            )}
-                          >
-                            {fmtTime(s)}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+              {error && <p className="mt-4 rounded-lg bg-[#fcecec] px-4 py-3 text-[14px] text-[#a3312e]">{error}</p>}
+              <SlotPicker
+                days={days}
+                day={day}
+                slot={slot}
+                onDay={(d) => {
+                  setDay(d);
+                  setSlot(undefined);
+                }}
+                onSlot={(x) => {
+                  setSlot(x);
+                  setError(null);
+                }}
+              />
               {touched && !slot && <p className="mt-4 text-[14px] text-fuse-red">Διάλεξε μια ώρα για να συνεχίσεις.</p>}
             </>
           )}
@@ -307,7 +271,7 @@ export function BookingFlow({
                 <Field label="Ονοματεπώνυμο" error={touched && name.trim().length < 3 ? "Συμπλήρωσε το όνομά σου" : undefined}>
                   <input className="field" value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" />
                 </Field>
-                <Field label="Κινητό" error={touched && !phoneOk ? "Το κινητό πρέπει να έχει 10 ψηφία" : undefined}>
+                <Field label="Κινητό" error={touched && !phoneOk ? "Γράψε ένα κινητό 10 ψηφίων που αρχίζει από 69" : undefined}>
                   <div className="flex">
                     <span className="grid place-items-center rounded-l-lg border border-r-0 border-line bg-sunk px-3 text-[15px] text-ink-2 tnum">+30</span>
                     <input className="field rounded-l-none tnum" value={phone} onChange={(e) => setPhone(e.target.value)} inputMode="tel" autoComplete="tel-national" placeholder="69XX XXX XXX" />
@@ -355,11 +319,11 @@ export function BookingFlow({
               </dl>
               {service.requiresApproval && (
                 <p className="mt-4 flex gap-2.5 rounded-lg bg-signal-soft px-4 py-3 text-[14px] text-ink-2">
-                  <MessageSquareText size={18} className="mt-0.5 shrink-0 text-[#9a7400]" />
+                  <MessageSquareText size={18} className="mt-0.5 shrink-0 text-[#8a6700]" />
                   Για αυτή την εργασία το συνεργείο επιβεβαιώνει την ώρα. Θα λάβεις SMS μέσα στη μέρα.
                 </p>
               )}
-              {error && <p className="mt-4 rounded-lg bg-[#fcecec] px-4 py-3 text-[14px] text-[#a3312e]">{error}</p>}
+              {error && <p className="mt-4 rounded-lg bg-[#fcecec] px-4 py-3 text-[14px] text-[#a3312e]" role="alert">{error}</p>}
             </>
           )}
         </div>
@@ -389,7 +353,7 @@ export function BookingFlow({
             <a href={`tel:${shop.phone.replace(/\s/g, "")}`} className="text-ink-2 underline underline-offset-2 hover:text-brand">
               {shop.phone}
             </a>
-            , Δευτέρα με Παρασκευή 8:00–17:00.
+            , {hoursSummary(shop)}.
           </p>
         </div>
       </aside>
@@ -479,7 +443,7 @@ function Success({ result, plate, shop }: { result: Result; plate: string; shop:
         <span
           className={cn(
             "animate-stamp absolute -right-8 -top-6 flex flex-col items-center rounded-md border-[2.5px] bg-panel/85 px-2.5 py-1 font-cond leading-none",
-            pending ? "border-[#b48a0c] text-[#9a7400]" : "border-brand text-brand",
+            pending ? "border-[#b48a0c] text-[#8a6700]" : "border-brand text-brand",
           )}
           style={{ animationDelay: "150ms" }}
           aria-hidden
@@ -503,6 +467,13 @@ function Success({ result, plate, shop }: { result: Result; plate: string; shop:
           <Phone size={17} /> Κλήση στο συνεργείο
         </a>
       </div>
+      <p className="mt-6 text-[14px] text-ink-2">
+        Άλλαξε κάτι;{" "}
+        <Link href={`/r/${result.token}`} className="font-medium text-brand underline underline-offset-2">
+          Αλλαγή ώρας ή ακύρωση
+        </Link>
+        . Ο ίδιος σύνδεσμος έρχεται και στο SMS.
+      </p>
     </div>
   );
 }
