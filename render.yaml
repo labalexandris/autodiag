@@ -12,7 +12,7 @@ services:
       # Τα mock δεδομένα και οι ώρες υπολογίζονται σε ώρα Ελλάδας
       - key: TZ
         value: Europe/Athens
-      # Βάση Neon (χρήστες): ορίζεται στο dashboard του Render, όχι εδώ
+      # Βάση Neon (όλα τα δεδομένα): ορίζεται στο dashboard του Render, όχι εδώ
       - key: DATABASE_URL
         sync: false
       # Υπογραφή των cookies σύνδεσης

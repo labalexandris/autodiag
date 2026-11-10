@@ -4,6 +4,8 @@ import { SmsTemplates } from "@/components/admin/sms-templates";
 import { CalendarConnect } from "@/components/admin/calendar-connect";
 import { Account } from "@/components/admin/account";
 import { UsersAdmin } from "@/components/admin/users-admin";
+import { DemoData } from "@/components/admin/demo-data";
+import { getDemoState } from "@/lib/db";
 import { requireUser } from "@/lib/auth-server";
 import { listUsers, roleLabel } from "@/lib/users";
 
@@ -14,12 +16,13 @@ const dayNames = ["Κυριακή", "Δευτέρα", "Τρίτη", "Τετάρ�
 export default async function SettingsPage() {
   const user = await requireUser();
   const isOwner = user.role === "owner";
-  const [shop, services, bays, templates, users] = await Promise.all([
+  const [shop, services, bays, templates, users, demoState] = await Promise.all([
     getShop(),
     getServices(),
     getBays(),
     getSmsTemplates(),
     isOwner ? listUsers() : Promise.resolve([]),
+    isOwner ? getDemoState() : Promise.resolve(undefined),
   ]);
   const hours = [...shop.hours].sort((a, b) => ((a.day + 6) % 7) - ((b.day + 6) % 7));
 
@@ -39,6 +42,14 @@ export default async function SettingsPage() {
       {isOwner && (
         <Section id="users" title="Χρήστες" desc="Ποιοι μπαίνουν στην εφαρμογή. Ο υπάλληλος δεν βλέπει αναφορές και δεν ακυρώνει ραντεβού.">
           <UsersAdmin users={users} meId={user.id} />
+        </Section>
+      )}
+
+      {isOwner && (
+        <Section id="data" title="Δεδομένα" desc="Για δοκιμές και παρουσίαση η εφαρμογή έχει ψεύτικα δεδομένα. Όταν ξεκινήσετε με πραγματικούς πελάτες, αδειάστε τα.">
+          <div className="panel p-5">
+            <DemoData state={demoState} />
+          </div>
         </Section>
       )}
 

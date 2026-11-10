@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { requireOwner } from "@/lib/auth-server";
-import { getAppointments, getServices } from "@/lib/data";
+import { getAppointments, getRecordTotalsByAppointment, getServices } from "@/lib/data";
 import { statusMeta, sourceLabel } from "@/lib/labels";
 import { fmtDayNum, fmtEUR, fmtMonthShort, fmtNum, cn } from "@/lib/format";
 import { BarChart, type Bar } from "@/components/admin/bar-chart";
@@ -13,13 +13,8 @@ export const dynamic = "force-dynamic";
 const periods = { "30": "30 ημέρες", "90": "3 μήνες", "180": "6 μήνες" } as const;
 type P = keyof typeof periods;
 
-/* Τα mock ραντεβού δεν έχουν ποσό: εκτίμηση από τη βάση τιμής × σταθερό συντελεστή ανά id. */
+/* Ραντεβού χωρίς εγγραφή στο βιβλιάριο (π.χ. «χωρίς εγγραφή»): εκτίμηση από την τιμή της υπηρεσίας. */
 const base: Record<string, number> = { diag: 45, immo: 110, ac: 70, starter: 180, battery: 105, lights: 40, windows: 120, service: 140 };
-function amount(a: Appointment) {
-  let h = 0;
-  for (const c of a.id) h = (h * 31 + c.charCodeAt(0)) >>> 0;
-  return Math.round(base[a.serviceId] * (0.75 + (h % 100) / 110));
-}
 
 export default async function ReportsPage({ searchParams }: { searchParams: Promise<{ p?: string }> }) {
   await requireOwner();
@@ -34,7 +29,8 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
   const prevFrom = new Date(from);
   prevFrom.setDate(prevFrom.getDate() - days);
 
-  const [all, services] = await Promise.all([getAppointments({ from: prevFrom, to: now }), getServices()]);
+  const [all, services, totals] = await Promise.all([getAppointments({ from: prevFrom, to: now }), getServices(), getRecordTotalsByAppointment(prevFrom, now)]);
+  const amount = (a: Appointment) => totals.get(a.id) ?? base[a.serviceId] ?? 0;
   const cur = all.filter((a) => new Date(a.start) >= from);
   const prev = all.filter((a) => new Date(a.start) < from);
 

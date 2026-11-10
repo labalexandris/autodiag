@@ -1,13 +1,12 @@
 import { Sidebar, MobileHeader, MobileNav } from "@/components/admin/nav";
-import { getAppointments } from "@/lib/data";
+import { getPendingCount } from "@/lib/data";
 import { getSearchEntries } from "@/lib/views";
 import { requireUser } from "@/lib/auth-server";
 import { roleLabel } from "@/lib/users";
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const user = await requireUser();
-  const [all, entries] = await Promise.all([getAppointments(), getSearchEntries()]);
-  const pending = all.filter((a) => a.status === "pending").length;
+  const [pending, entries] = await Promise.all([getPendingCount(), getSearchEntries()]);
   const me = { name: user.name, roleLabel: roleLabel[user.role], isOwner: user.role === "owner" };
   return (
     <div className="flex min-h-dvh">

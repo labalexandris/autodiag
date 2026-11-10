@@ -212,3 +212,28 @@ textarea.field {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.55; }
 }
+
+/* Login: πλέγμα οθόνης παλμογράφου και κυματομορφή που κυλάει */
+.scope {
+  background-image:
+    radial-gradient(120% 80% at 20% 0%, rgba(30, 95, 184, 0.35), transparent 60%),
+    linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+  background-size:
+    100% 100%,
+    100% 40px,
+    40px 100%;
+}
+.trace-run {
+  animation: trace-run 3.2s linear infinite;
+}
+@keyframes trace-run {
+  to {
+    transform: translateX(-210px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .trace-run {
+    animation: none;
+  }
+}

@@ -1,7 +1,7 @@
 import "server-only";
-import { neon } from "@neondatabase/serverless";
 import { randomBytes, scrypt as scryptCb, timingSafeEqual } from "node:crypto";
 import { promisify } from "node:util";
+import { ensureDb, sql } from "./db";
 
 /*
  * Οι χρήστες του συνεργείου, στο Neon. Ο πίνακας φτιάχνεται μόνος του στην
@@ -36,11 +36,7 @@ async function checkPassword(password: string, stored: string) {
   return given.length === expected.length && timingSafeEqual(given, expected);
 }
 
-function db() {
-  const url = process.env.DATABASE_URL;
-  if (!url) throw new Error("Λείπει το DATABASE_URL.");
-  return neon(url);
-}
+const db = sql;
 
 const SEED: { username: string; name: string; role: Role; password: string }[] = [
   { username: "manolis", name: "Μανώλης Παπουτσάκης", role: "owner", password: "123" },
@@ -49,20 +45,11 @@ const SEED: { username: string; name: string; role: Role; password: string }[] =
 
 let ready: Promise<void> | null = null;
 
-/** Μία φορά ανά εκκίνηση του server: πίνακας και αρχικοί χρήστες. */
+/** Μία φορά ανά εκκίνηση του server: πίνακες (db.ts) και αρχικοί χρήστες. */
 function ensureSchema() {
   ready ??= (async () => {
+    await ensureDb();
     const sql = db();
-    await sql`
-      CREATE TABLE IF NOT EXISTS users (
-        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-        username text NOT NULL UNIQUE,
-        name text NOT NULL,
-        role text NOT NULL CHECK (role IN ('owner', 'staff')),
-        password_hash text NOT NULL,
-        active boolean NOT NULL DEFAULT true,
-        created_at timestamptz NOT NULL DEFAULT now()
-      )`;
     const [{ n }] = (await sql`SELECT count(*)::int AS n FROM users`) as { n: number }[];
     if (n === 0) {
       for (const u of SEED) {

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Phone, CalendarPlus } from "lucide-react";
 import {
-  getAppointments,
+  getAppointmentsForVehicle,
   getCustomer,
   getRecordsForVehicle,
   getRemindersForVehicle,
@@ -39,12 +39,12 @@ export default async function VehiclePage({ params }: { params: Promise<{ plate:
     getRecordsForVehicle(vehicle.id),
     getRemindersForVehicle(vehicle.id),
     getServices(),
-    getAppointments(),
+    getAppointmentsForVehicle(vehicle.id),
     getShop(),
   ]);
   // Οχήματα από online κράτηση έρχονται μόνο με πινακίδα και μάρκα
   const incomplete = !vehicle.year || !vehicle.fuel || vehicle.km === 0;
-  const upcoming = appts.filter((a) => a.vehicleId === vehicle.id && new Date(a.end) > new Date() && !["cancelled", "done"].includes(a.status));
+  const upcoming = appts.filter((a) => new Date(a.end) > new Date() && !["cancelled", "done"].includes(a.status));
   const spent = records.reduce((s, r) => s + recordTotal(r), 0);
 
   return (

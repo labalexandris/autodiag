@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireOwner, requireUser } from "@/lib/auth-server";
+import { clearData, seedDemo } from "@/lib/db";
 import {
   MIN_PASSWORD,
   UserError,
@@ -58,6 +59,23 @@ export async function editUser(id: string, input: { name: string; role: string; 
   } catch (e) {
     return fail(e);
   }
+  revalidatePath("/admin", "layout");
+  return { ok: true };
+}
+
+/** Νέα demo δεδομένα, σχετικά με σήμερα. Σβήνει ό,τι υπάρχει (εκτός από τους χρήστες). */
+export async function resetDemoData(): Promise<Result> {
+  await requireOwner();
+  await seedDemo();
+  revalidatePath("/admin", "layout");
+  return { ok: true };
+}
+
+/** Άδειασμα για πραγματική χρήση: σβήνει πελάτες, οχήματα, ραντεβού, βιβλιάρια. */
+export async function clearAllData(confirmText: string): Promise<Result> {
+  await requireOwner();
+  if (confirmText.trim().toUpperCase() !== "ΔΙΑΓΡΑΦΗ") return { ok: false, error: "Γράψε ΔΙΑΓΡΑΦΗ για επιβεβαίωση." };
+  await clearData();
   revalidatePath("/admin", "layout");
   return { ok: true };
 }

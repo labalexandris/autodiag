@@ -1,25 +1,24 @@
-import { getAllRecords, getCustomers, getVehicles, recordTotal } from "@/lib/data";
+import { getCustomerStats, getCustomers, getVehicles } from "@/lib/data";
 import { CustomerTable, type CustomerRow } from "@/components/admin/customer-table";
 
 export const metadata = { title: "Πελάτες" };
 export const dynamic = "force-dynamic";
 
 export default async function CustomersPage() {
-  const [customers, vehicles, records] = await Promise.all([getCustomers(), getVehicles(), getAllRecords()]);
+  const [customers, vehicles, stats] = await Promise.all([getCustomers(), getVehicles(), getCustomerStats()]);
 
   const rows: CustomerRow[] = customers.map((c) => {
     const vs = vehicles.filter((v) => v.ownerId === c.id);
-    const rs = records.filter((r) => vs.some((v) => v.id === r.vehicleId));
-    const last = rs.reduce<string | undefined>((m, r) => (!m || r.date > m ? r.date : m), undefined);
+    const st = stats.get(c.id);
     return {
       id: c.id,
       name: c.name,
       phone: c.phone,
       plates: vs.map((v) => v.plate),
       vehicles: vs.map((v) => `${v.make} ${v.model}`).join(", "),
-      lastVisit: last,
-      visits: rs.length,
-      spent: rs.reduce((s, r) => s + recordTotal(r), 0),
+      lastVisit: st?.lastVisit,
+      visits: st?.visits ?? 0,
+      spent: st?.spent ?? 0,
     };
   });
 

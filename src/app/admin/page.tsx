@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { CalendarCheck2, Plus } from "lucide-react";
 import { requireUser } from "@/lib/auth-server";
-import { getAppointments, getBays, getServices, getShop } from "@/lib/data";
+import { getAppointments, getBays, getPendingAppointments, getServices, getShop } from "@/lib/data";
 import { getDueSoon, getSearchEntries, hydrateAppointments } from "@/lib/views";
 import { halfHourOptions, hoursBounds } from "@/lib/hours";
 import { fmtDayLong, fmtTime } from "@/lib/format";
@@ -22,19 +22,18 @@ export default async function TodayPage() {
   const to = new Date(from);
   to.setDate(to.getDate() + 1);
 
-  const [bays, services, shop, today, all, entries, due] = await Promise.all([
+  const [bays, services, shop, today, pending, entries, due] = await Promise.all([
     getBays(),
     getServices(),
     getShop(),
     getAppointments({ from, to }).then(hydrateAppointments),
-    getAppointments().then(hydrateAppointments),
+    getPendingAppointments().then(hydrateAppointments),
     getSearchEntries(),
     getDueSoon(),
   ]);
   const { start, end } = hoursBounds(shop);
 
   const active = today.filter((t) => t.appt.status !== "cancelled");
-  const pending = all.filter((t) => t.appt.status === "pending");
   const inProgress = active.filter((t) => t.appt.status === "in_progress");
   const next = active.find((t) => t.appt.status === "confirmed");
   const left = active.filter((t) => ["confirmed", "in_progress"].includes(t.appt.status)).length;
